@@ -13,8 +13,8 @@ export default function PublicLayout({
 
     return (
         <div className="flex flex-col min-h-screen bg-brand-cream/30">
-            <header className="sticky top-0 z-50 w-full border-b border-brand-blue/5 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-                <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
+            <header className="sticky top-0 z-50 w-full border-b border-brand-blue/5 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 shadow-sm transition-all duration-300">
+                <div className="max-w-7xl mx-auto w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <Link href="/" className="font-serif text-2xl font-bold text-brand-blue tracking-tight">
                         Doodhly
                     </Link>
@@ -57,7 +57,7 @@ export default function PublicLayout({
                     </div>
                 </div>
             </header>
-            <main className="flex-1">
+            <main className="flex-1 w-full relative">
                 {loading ? (
                     <div className="flex items-center justify-center min-h-[60vh]">
                         <Loader2 className="w-10 h-10 animate-spin text-brand-blue" />
@@ -67,7 +67,7 @@ export default function PublicLayout({
                 )}
             </main>
             <footer className="border-t border-brand-blue/5 bg-white py-12">
-                <div className="container px-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
                         <div className="flex flex-col items-center md:items-start gap-2">
                             <span className="font-serif text-xl font-bold text-brand-blue">Doodhly</span>

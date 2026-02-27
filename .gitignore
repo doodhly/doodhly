@@ -34,4 +34,14 @@ Thumbs.db
 
 # Project specific
 backend/logs/
+backend/secrets/
 doodhly-web/.next/
+
+# Python env
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python

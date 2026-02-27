@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { MapPin, Plus, Trash2, Loader2, Home, Briefcase, Map as MapIcon, Navigation, XCircle, CheckCircle2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import MapPicker from "@/components/MapPicker";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { reverseGeocode } from "@/lib/geo";
@@ -23,26 +23,26 @@ interface Address {
 }
 
 export default function AddressesPage() {
-    const [addresses, setAddresses] = useState<Address[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [fetchState, setFetchState] = useState<{ addresses: Address[]; loading: boolean }>({
+        addresses: [],
+        loading: true,
+    });
     const [geoUpdatingId, setGeoUpdatingId] = useState<number | null>(null);
     const [showAdd, setShowAdd] = useState(false);
     const [newAddress, setNewAddress] = useState({ name: "Home", street: "", city: "Sakti", lat: null as number | null, lng: null as number | null, accuracy: null as number | null });
 
-    // Geotag Reset Modal State
     const [pinModal, setPinModal] = useState<{ id: number; lat: number | null; lng: number | null; accuracy: number | null } | null>(null);
 
     const { getPosition, loading: geoLoading, coords, accuracy: geoAccuracy, error: geoError } = useGeolocation();
 
     const fetchAddresses = async () => {
-        setLoading(true);
+        setFetchState(prev => ({ ...prev, loading: true }));
         try {
             const data = await api.get<Address[]>('/customer/addresses');
-            setAddresses(data);
+            setFetchState({ addresses: data, loading: false });
         } catch (e) {
             console.error(e);
-        } finally {
-            setLoading(false);
+            setFetchState(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -113,9 +113,10 @@ export default function AddressesPage() {
         }
     };
 
-    if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-brand-blue" /></div>;
+    if (fetchState.loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-brand-blue" /></div>;
 
     return (
+        <LazyMotion features={domAnimation}>
         <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <header className="flex justify-between items-center">
                 <h1 className="font-serif text-3xl font-bold text-brand-blue">My Addresses</h1>
@@ -184,13 +185,13 @@ export default function AddressesPage() {
             )}
 
             <div className="space-y-4">
-                {addresses.length === 0 ? (
+                {fetchState.addresses.length === 0 ? (
                     <GlassCard className="p-12 text-center border-dashed border-2 border-gray-100">
                         <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No addresses saved yet</p>
                     </GlassCard>
                 ) : (
-                    addresses.map(addr => (
+                    fetchState.addresses.map(addr => (
                         <GlassCard key={addr.id} className="p-6 flex items-center justify-between group hover:border-brand-blue/30 transition-all cursor-default">
                             <div className="flex items-center gap-4">
                                 <div className="p-4 bg-brand-blue/5 rounded-2xl text-brand-blue shadow-inner">
@@ -222,10 +223,9 @@ export default function AddressesPage() {
                 )}
             </div>
 
-            {/* Geotag Reset Modal Overlay */}
             {pinModal && (
                 <div className="fixed inset-0 z-[2000] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                    <motion.div
+                    <m.div
                         initial={{ y: 100 }}
                         animate={{ y: 0 }}
                         className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-6 md:p-8 space-y-6"
@@ -272,9 +272,10 @@ export default function AddressesPage() {
                                 {geoUpdatingId === pinModal.id ? <Loader2 className="animate-spin" /> : "Save Delivery Pin"}
                             </Button>
                         </div>
-                    </motion.div>
+                    </m.div>
                 </div>
             )}
         </div>
+        </LazyMotion>
     );
 }

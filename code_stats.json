@@ -1,0 +1,36 @@
+{
+    "project": "Doodhly Dairy Subscription Platform",
+    "audit_date": "2026-02-12",
+    "metrics": {
+        "backend": {
+            "file_count": 41,
+            "directory_depth": 5,
+            "loc": 3242,
+            "vulnerabilities": {
+                "total": 3,
+                "high": 1,
+                "moderate": 1,
+                "low": 1
+            }
+        },
+        "frontend": {
+            "file_count": 48,
+            "directory_depth": 6,
+            "loc": 4850,
+            "vulnerabilities": {
+                "high": 4
+            },
+            "build_status": "SUCCESS"
+        }
+    },
+    "overall_health": {
+        "code_quality": 8,
+        "security_posture": 7,
+        "performance": 9,
+        "scalability": 8,
+        "maintainability": 7,
+        "documentation": 5,
+        "production_readiness": 6,
+        "weighted_average": 7.1
+    }
+}

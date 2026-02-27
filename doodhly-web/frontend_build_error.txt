@@ -1,0 +1,70 @@
+﻿
+> doodhly-web@0.1.0 build
+> next build
+
+node.exe : ΓÜá Warning: Next.js inferred 
+your workspace root, but it may not be 
+correct.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: 
+    (ΓÜá Warning: Ne...not be correct.:Str  
+  ing) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommand 
+   Error
+ 
+ We detected multiple lockfiles and 
+selected the directory of C:\Users\ACT\.gemi
+ni\antigravity\scratch\anti gravity 
+project\package-lock.json as the root 
+directory.
+ To silence this warning, set 
+`turbopack.root` in your Next.js config, or 
+consider removing one of the lockfiles if 
+it's not needed.
+   See https://nextjs.org/docs/app/api-refer
+ence/config/next-config-js/turbopack#root-di
+rectory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\ACT\.gemini\antigravity\scratc
+h\anti gravity 
+project\doodhly-web\package-lock.json
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 10.9s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(admin)/admin/inventory/page.tsx:3
+0:26
+Type error: 'res' is of type 'unknown'.
+
+[0m [90m 28 |[39m             
+[36mconst[39m dateStr [33m=[39m 
+format(date[33m,[39m 
+[32m"yyyy-MM-dd"[39m)[33m;[39m
+ [90m 29 |[39m             
+[36mconst[39m res [33m=[39m 
+[36mawait[39m api[33m.[39m[36mget[39m(
+[32m`/admin/inventory/forecast?date=${dateS
+tr}`[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m         
+    setForecasts(res[33m.[39mdata[33m.[3
+9mforecasts [33m||[39m [])[33m;[39m
+ [90m    |[39m                          
+[31m[1m^[22m[39m
+ [90m 31 |[39m         } [36mcatch[39m 
+(error) {
+ [90m 32 |[39m             
+console[33m.[39merror([32m"Failed to 
+fetch forecasts"[39m[33m,[39m 
+error)[33m;[39m
+ [90m 33 |[39m         } 
+[36mfinally[39m {[0m
+Next.js build worker exited with code: 1 
+and signal: null

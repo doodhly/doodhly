@@ -45,6 +45,11 @@ export class DeliveryVerificationService {
                 .where({ id: delivery.id })
                 .update({ status: 'DELIVERED', proof_type: 'COUPON' });
 
+            // 6. Gamification Hooks
+            const GamificationService = require('../../gamification/gamification.service').GamificationService;
+            const gamificationService = new GamificationService();
+            await gamificationService.processDeliveryRewards(delivery.user_id, delivery.date, trx);
+
             return { status: 'VERIFIED', delivery_id: delivery.id };
         });
     }

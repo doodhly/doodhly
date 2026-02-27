@@ -1,5 +1,3 @@
-export const APP_NAME = "Doodhly";
-
 export const ROUTES = {
     HOME: "/",
     LOGIN: "/login",
@@ -12,8 +10,9 @@ export const ROUTES = {
 };
 
 export const API_ENDPOINTS = {
-    SEND_OTP: "/auth/send-otp",
-    VERIFY_OTP: "/auth/verify-otp",
+    SEND_OTP: "/auth/otp",
+    VERIFY_OTP: "/auth/login",
+    LOGOUT: "/auth/logout",
     SUBSCRIPTIONS: "/customer/subscriptions",
     DELIVERY: "/delivery",
     DELIVERY_SYNC: "/delivery/sync",

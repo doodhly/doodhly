@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
+import { PaymentModal } from "@/components/ui/PaymentModal";
 import { Plus, ArrowDownLeft, ArrowUpRight, History, Wallet as WalletIcon, Loader2, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { Container } from "@/components/ui/Container";
 
 interface WalletData {
     id: string;
@@ -29,28 +31,28 @@ export default function WalletPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const fetchWalletData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Fetch wallet balance
+            const walletRes = await api.get<WalletData>('/customer/wallet');
+            setBalance(walletRes.balance);
+
+            // Fetch ledger transactions
+            const ledgerRes = await api.get<LedgerEntry[]>('/customer/wallet/ledger');
+            setTransactions(ledgerRes || []);
+        } catch (err: any) {
+            console.error('Wallet fetch error:', err);
+            setError(err.message || 'Failed to load wallet data');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (authLoading) return;
         if (!user) return;
-
-        const fetchWalletData = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                // Fetch wallet balance
-                const walletRes = await api.get<WalletData>('/customer/wallet');
-                setBalance(walletRes.balance);
-
-                // Fetch ledger transactions
-                const ledgerRes = await api.get<LedgerEntry[]>('/customer/wallet/ledger');
-                setTransactions(ledgerRes || []);
-            } catch (err: any) {
-                console.error('Wallet fetch error:', err);
-                setError(err.message || 'Failed to load wallet data');
-            } finally {
-                setIsLoading(false);
-            }
-        };
 
         fetchWalletData();
     }, [user, authLoading]);
@@ -70,6 +72,8 @@ export default function WalletPage() {
             case 'RECHARGE': return 'Wallet Recharge';
             case 'ORDER_DEDUCTION': return 'Milk Delivery';
             case 'ROLLOVER_REFUND': return 'Refund';
+            case 'REFERRAL_BONUS': return 'Referral Bonus';
+            case 'STREAK_REWARD': return 'Streak Milestone Reward';
             default: return type.replace(/_/g, ' ');
         }
     };
@@ -83,7 +87,7 @@ export default function WalletPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Container className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 py-8">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="font-serif text-3xl font-bold text-brand-blue">My Wallet</h1>
@@ -116,13 +120,18 @@ export default function WalletPage() {
                             ₹{balance !== null ? balance : '--'}
                         </div>
                     </div>
-                    <Button
-                        size="lg"
-                        className="bg-white text-brand-blue hover:bg-blue-50 border-none shadow-none font-bold"
-                    >
-                        <Plus className="w-5 h-5 mr-2" />
-                        Add Money
-                    </Button>
+                    <PaymentModal
+                        onSuccess={fetchWalletData}
+                        trigger={
+                            <Button
+                                size="lg"
+                                className="bg-white text-brand-blue hover:bg-blue-50 border-none shadow-none font-bold"
+                            >
+                                <Plus className="w-5 h-5 mr-2" />
+                                Add Money
+                            </Button>
+                        }
+                    />
                 </div>
 
                 {/* Decorative Circles */}
@@ -163,6 +172,6 @@ export default function WalletPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </Container>
     );
 }

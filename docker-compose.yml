@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  frontend:
+    build: ./doodhly-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+    depends_on:
+      - backend
+    restart: always
+
   backend:
     build: ./backend
     ports:
@@ -11,20 +28,21 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - JWT_SECRET=${JWT_SECRET}
-      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
-      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - CORS_ORIGIN=http://localhost:3000
-    restart: always
-
-  frontend:
-    build: ./doodhly-web
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - RAZORPAY_KEY_ID_FILE=/run/secrets/razorpay_key_id
+      - RAZORPAY_KEY_SECRET_FILE=/run/secrets/razorpay_key_secret
+      - TWILIO_ACCOUNT_SID_FILE=/run/secrets/twilio_account_sid
+      - TWILIO_AUTH_TOKEN_FILE=/run/secrets/twilio_auth_token
+      - TWILIO_PHONE_NUMBER_FILE=/run/secrets/twilio_phone_number
+      - CORS_ORIGIN=https://app.doodhly.com
+    depends_on:
+      - redis
+    secrets:
+      - jwt_secret
+      - razorpay_key_id
+      - razorpay_key_secret
+      - twilio_account_sid
+      - twilio_auth_token
+      - twilio_phone_number
     restart: always

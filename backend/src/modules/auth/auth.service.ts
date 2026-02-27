@@ -4,6 +4,9 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { AppError } from '../../core/errors/app-error';
 import { SmsService } from '../notification/sms.service';
+import logger from '../../core/utils/logger';
+
+import { secrets } from '../../config/secrets';
 
 const smsService = new SmsService();
 
@@ -11,6 +14,16 @@ export class AuthService {
 
     private hashOtp(otp: string): string {
         return crypto.createHash('sha256').update(otp).digest('hex');
+    }
+
+    private generateReferralCode(): string {
+        // 6 characters, uppercase alphanumeric (excluding ambiguous I, O, 1, 0)
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(crypto.randomInt(0, chars.length));
+        }
+        return result;
     }
 
     async requestOtp(phone: string) {
@@ -34,16 +47,20 @@ export class AuthService {
         if (process.env.NODE_ENV !== 'development') {
             await smsService.sendOtp(phone, code);
         } else {
-            console.log(`[DEV] OTP for ${phone}: ${code} (Auto-login enabled)`);
+            logger.info(`[DEV] OTP for ${phone}: ${code} (Auto-login enabled)`);
         }
 
         return { message: 'OTP sent successfully' };
     }
 
-    async loginWithPhone(phone: string, otp: string) {
+    private hashToken(token: string): string {
+        return crypto.createHash('sha256').update(token).digest('hex');
+    }
+
+    async loginWithPhone(phone: string, otp: string, referralCode?: string) {
         // Backdoor for development (Skip detailed checks if strictly dev and using backdoor OTP)
         if (otp === '1234' && process.env.NODE_ENV === 'development') {
-            console.log(`[BACKDOOR] Bypassing OTP check for phone: ${phone}`);
+            logger.warn(`[BACKDOOR] Bypassing OTP check for phone: ${phone}`);
         } else {
             // 1. Find Record
             const record = await db('verification_codes')
@@ -82,9 +99,13 @@ export class AuthService {
             let existingUser = await trx('users').where({ phone_hash: phone }).first();
 
             if (!existingUser) {
+                // Generate unique referral code (simple retry logic for collision)
+                let myReferralCode = this.generateReferralCode();
+
                 const [newUserId] = await trx('users').insert({
                     phone_hash: phone,
-                    role: 'CUSTOMER'
+                    role: 'CUSTOMER',
+                    referral_code: myReferralCode
                 });
 
                 // Init Wallet
@@ -93,7 +114,22 @@ export class AuthService {
                     balance: 0
                 });
 
-                existingUser = { id: newUserId, role: 'CUSTOMER', default_city_id: null };
+                // Process Incoming Referral (if any)
+                if (referralCode) {
+                    const referrer = await trx('users').where({ referral_code: referralCode }).first();
+                    if (referrer) {
+                        await trx('referrals').insert({
+                            id: crypto.randomUUID(),
+                            referrer_id: referrer.id,
+                            referee_id: newUserId,
+                            status: 'PENDING',
+                            reward_amount_paisa: 5000 // 50 Rupees
+                        });
+                        logger.info(`[Referral] User ${newUserId} referred by ${referrer.id}`);
+                    }
+                }
+
+                existingUser = { id: newUserId, role: 'CUSTOMER', default_city_id: null, referral_code: myReferralCode };
             }
             return existingUser;
         });
@@ -101,15 +137,104 @@ export class AuthService {
         // 6. Generate Tokens
         const accessToken = jwt.sign(
             { id: user.id, role: user.role || 'CUSTOMER', city_id: user.default_city_id || 1 },
-            process.env.JWT_SECRET || 'secret',
-            { expiresIn: '15m' }
+            secrets.JWT_SECRET,
+            { expiresIn: '15m', algorithm: 'HS256' }
         );
+
+        const tokenFamily = crypto.randomUUID();
+        const refreshToken = jwt.sign(
+            { id: user.id, type: 'refresh', family: tokenFamily },
+            secrets.JWT_REFRESH_SECRET || (secrets.JWT_SECRET + '_refresh'),
+            { expiresIn: '7d', algorithm: 'HS256' }
+        );
+
+        // 7. Store refreshToken hash in DB
+        await db('refresh_tokens').insert({
+            user_id: user.id,
+            token_hash: this.hashToken(refreshToken),
+            token_family: tokenFamily,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
 
         return {
             accessToken,
+            refreshToken,
             user,
-            isNewUser: !user.name // If name is missing, treat as new user
+            isNewUser: !user.name
         };
+    }
+
+    async refresh(oldRefreshToken: string) {
+        try {
+            const secret = secrets.JWT_REFRESH_SECRET || (secrets.JWT_SECRET + '_refresh');
+            const payload = jwt.verify(oldRefreshToken, secret, { algorithms: ['HS256'] }) as any;
+
+            if (payload.type !== 'refresh' || !payload.family) {
+                throw new AppError('Invalid refresh token', 401);
+            }
+
+            const tokenHash = this.hashToken(oldRefreshToken);
+
+            // 1. Find token in DB
+            const storedToken = await db('refresh_tokens')
+                .where({ token_hash: tokenHash })
+                .first();
+
+            // 2. Reuse Detection
+            if (!storedToken || storedToken.revoked_at) {
+                // If token is revoked or doesn't exist (but was signed by us), suspect theft
+                // Revoke entire family if it exists
+                if (payload.family) {
+                    await db('refresh_tokens')
+                        .where({ token_family: payload.family })
+                        .update({ revoked_at: new Date() });
+                }
+                throw new AppError('Token revoked or reuse detected. Please re-authenticate.', 401);
+            }
+
+            if (storedToken.used_at) {
+                // TOKEN REUSE DETECTED!
+                await db('refresh_tokens')
+                    .where({ token_family: payload.family })
+                    .update({ revoked_at: new Date() });
+                throw new AppError('Token already used. Security breach suspected. All tokens revoked.', 401);
+            }
+
+            // 3. Mark old token as used
+            await db('refresh_tokens')
+                .where({ id: storedToken.id })
+                .update({ used_at: new Date() });
+
+            // 4. Issue new tokens
+            const user = await db('users').where({ id: payload.id }).first();
+            if (!user) throw new AppError('User not found', 401);
+
+            const accessToken = jwt.sign(
+                { id: user.id, role: user.role, city_id: user.default_city_id || 1 },
+                secrets.JWT_SECRET,
+                { expiresIn: '15m', algorithm: 'HS256' }
+            );
+
+            // Rotate refresh token (KEEP SAME FAMILY)
+            const newRefreshToken = jwt.sign(
+                { id: user.id, type: 'refresh', family: payload.family },
+                secret,
+                { expiresIn: '7d', algorithm: 'HS256' }
+            );
+
+            // Store new token hash
+            await db('refresh_tokens').insert({
+                user_id: user.id,
+                token_hash: this.hashToken(newRefreshToken),
+                token_family: payload.family,
+                expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            });
+
+            return { accessToken, refreshToken: newRefreshToken };
+        } catch (err) {
+            if (err instanceof AppError) throw err;
+            throw new AppError('Refresh failed', 401);
+        }
     }
 
     async completeOnboarding(userId: number, details: any) {
@@ -138,11 +263,11 @@ export class AuthService {
                     updated_at: new Date()
                 });
 
-                console.log(`[Onboarding] Successfully completed for user ${userId}. Address: ${addressId}`);
+                logger.info(`[Onboarding] Successfully completed for user ${userId}. Address: ${addressId}`);
                 return { status: 'success', addressId };
             });
         } catch (error) {
-            console.error(`[Onboarding] Failed for user ${userId}:`, error);
+            logger.error(`[Onboarding] Failed for user ${userId}:`, error);
             throw error;
         }
     }

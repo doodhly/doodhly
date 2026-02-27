@@ -5,6 +5,7 @@ import db from '../../config/db';
 import { AppError } from '../../core/errors/app-error';
 import { WalletService } from '../customer/wallet/wallet.service';
 import { NotificationService } from '../notification/notification.service';
+import logger from '../../core/utils/logger';
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_missing',
@@ -50,7 +51,7 @@ export class PaymentService {
                 keyId: process.env.RAZORPAY_KEY_ID
             };
         } catch (error) {
-            console.error('Razorpay Error:', error);
+            logger.error('Razorpay Error:', error);
             throw new AppError('Payment initialization failed', 500);
         }
     }
@@ -136,7 +137,7 @@ export class PaymentService {
                 );
 
                 await trx.commit();
-                console.log(`Wallet credited for order ${orderId}`);
+                logger.info(`Wallet credited for order ${orderId}`);
 
                 // 5. Send Notification (Async)
                 const updatedWallet = await db('wallets').where({ user_id: transaction.user_id }).first();
@@ -148,7 +149,7 @@ export class PaymentService {
 
             } catch (error) {
                 await trx.rollback();
-                console.error('Webhook processing failed:', error);
+                logger.error('Webhook processing failed:', error);
                 throw error;
             }
         }

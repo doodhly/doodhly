@@ -1,5 +1,6 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
+import db from '../../config/db';
 import { DeliveryVerificationService } from './verification/coupon.service';
 import { requireAuth, restrictTo } from '../../core/middleware/auth.middleware';
 import { AppError } from '../../core/errors/app-error';
@@ -10,10 +11,36 @@ const router = Router();
 const verificationService = new DeliveryVerificationService();
 const deliveryService = new DeliveryService();
 
-// All routes require DELIVERY_PARTNER role
-router.use(requireAuth, restrictTo('DELIVERY_PARTNER'));
+// Base Auth for all
+router.use(requireAuth);
 
-router.get('/sync', async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * GET /api/v1/delivery
+ * Customer: Get MY delivery for a specific date
+ */
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { date } = req.query;
+        if (!date) throw new AppError('Date query required', 400);
+
+        const delivery = await db('daily_deliveries')
+            .where({
+                user_id: req.user!.id,
+                date: date as string
+            })
+            .select('*'); // Array (usually 1 or 0)
+
+        res.status(200).json(delivery);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// --- PARTNER ONLY ROUTES BELOW ---
+const partnerRouter = Router();
+partnerRouter.use(restrictTo('DELIVERY_PARTNER'));
+
+partnerRouter.get('/sync', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { date } = req.query;
         if (!date) throw new AppError('Date query required', 400);
@@ -68,38 +95,15 @@ router.post('/sync/batch', async (req: Request, res: Response, next: NextFunctio
         const { updates } = req.body;
         if (!updates || !Array.isArray(updates)) throw new AppError('Invalid updates format', 400);
 
-        const results = [];
-
-        for (const update of updates) {
-            try {
-                // Determine Action
-                if (update.type === 'COUPON') {
-                    if (!update.code) throw new Error('Code missing');
-                    await verificationService.verifyCoupon(update.code, req.user!.id);
-                    results.push({ id: update.id, success: true, status: 'DELIVERED' });
-                }
-                else if (update.type === 'ISSUE') {
-                    if (!update.reason) throw new Error('Reason missing');
-                    // Uses delivery ID from update.id (which assumes update.id IS daily_delivery_id)
-                    await verificationService.reportIssue(update.id, update.reason, req.user!.id, Number(req.user!.city_id));
-                    results.push({ id: update.id, success: true, status: 'MISSED' });
-                } else {
-                    results.push({ id: update.id, success: false, error: 'Unknown Type' });
-                }
-            } catch (err: any) {
-                // Idempotency: If already scanned/refunded, treat as success or specific warning
-                if (err.message === 'ALREADY_SCANNED' || err.status === 'ALREADY_REFUNDED') {
-                    results.push({ id: update.id, success: true, status: 'ALREADY_DONE' });
-                } else {
-                    results.push({ id: update.id, success: false, error: err.message });
-                }
-            }
-        }
+        const results = await deliveryService.processOfflineBatch(updates, req.user!.id, Number(req.user!.city_id));
 
         res.status(200).json({ results });
     } catch (err) {
         next(err);
     }
 });
+
+// Mount partner routes
+router.use('/', partnerRouter);
 
 export const deliveryRouter = router;

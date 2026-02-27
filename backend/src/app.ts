@@ -1,48 +1,35 @@
+import 'express-async-errors'; // Async error handling
 import express from 'express';
 import { AppError } from './core/errors/app-error';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import logger from './core/utils/logger';
 import rateLimit from 'express-rate-limit';
+import { setupSwagger } from './config/swagger';
+
+import { config, validateCorsConfig, corsOptions } from './config/env';
+import healthRoutes from './modules/health/health.routes';
 
 const app = express();
 
-// 🚀 TOTAL DEVELOPMENT PERMISSIVENESS
-// 1. Manual Aggressive CORS & No-Cache (Must be first)
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (process.env.NODE_ENV === 'development') {
-        // Force CORS
-        if (origin) res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning, bypass-tunnel-reminder, x-pinggy-no-interstitial');
-        res.header('Access-Control-Allow-Credentials', 'true');
+// Validate CORS at startup
+validateCorsConfig();
 
-        // FORCE NO-CACHE (Prevents 304/CORS rejection issues)
-        res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.header('Pragma', 'no-cache');
-        res.header('Expires', '0');
-
-        console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
-    }
-
-    // Handle Preflight
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    next();
-});
-
-// Dynamic Security Headers (Relaxed in dev)
-app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === 'development' ? false : undefined,
-    crossOriginResourcePolicy: process.env.NODE_ENV === 'development' ? false : { policy: "cross-origin" },
-    crossOriginOpenerPolicy: process.env.NODE_ENV === 'development' ? false : { policy: "same-origin" },
-}));
-
-// JSON Parser must be BEFORE routes
+// 1. Parsers & Cookies
 app.use(express.json());
+app.use(cookieParser());
+
+// 2. Strict CORS Policy
+app.use(cors(corsOptions));
+
+// 3. Security Headers (Helmet)
+app.use(helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === 'production', // Only strict CSP in production
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+}));
 
 // Request Logging
 const stream = {
@@ -60,37 +47,52 @@ import { walletRouter } from './modules/customer/wallet/wallet.controller';
 import { jobsRouter } from './modules/admin/jobs.controller';
 import { subscriptionRouter } from './modules/customer/subscriptions/subscription.controller';
 import { customerRouter } from './modules/customer/customer.controller';
+import { calendarRouter } from './modules/delivery/calendar.controller';
 import { deliveryRouter } from './modules/delivery/delivery.controller';
+import { analyticsRouter } from './modules/analytics/analytics.controller';
 import { adminRouter } from './modules/admin/admin.controller';
 import { paymentRouter } from './modules/payment/payment.controller';
+import routeOptimizationRouter from './modules/route-optimization/route-optimization.routes';
 
-// Loosen Rate Limits for mobile testing
-const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'development' ? 99999 : 500,
-    message: 'Too many requests'
-});
+// Import Tiered Rate Limiters
+import {
+    generalLimiter,
+    otpRequestLimiter,
+    otpVerifyLimiter,
+    walletLimiter
+} from './core/middleware/rate-limiter.middleware';
 
-const authLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: process.env.NODE_ENV === 'development' ? 1000 : 20,
-    message: 'Too many attempts'
-});
+// Apply General Rate Limiter to all requests
+app.use(generalLimiter);
 
-// Mount Routes
-app.use('/api/v1/auth', authLimiter, authRouter);
-app.use('/api/v1/payment', paymentRouter);
+// Mount Routes with specific limiters
+app.use('/api/v1/auth/otp', otpRequestLimiter);
+app.use('/api/v1/auth/login', otpVerifyLimiter);
+app.use('/api/v1/auth', authRouter);
+
+app.use('/api/v1/payment', walletLimiter, paymentRouter);
+app.use('/api/v1/customer/wallet', walletLimiter, walletRouter);
+
 app.use('/api/v1/customer', customerRouter);
-app.use('/api/v1/customer/wallet', walletRouter);
 app.use('/api/v1/customer/subscriptions', subscriptionRouter);
 app.use('/api/v1/delivery', deliveryRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/admin/jobs', jobsRouter);
+app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/partner', routeOptimizationRouter);
+import inventoryRouter from './modules/inventory/inventory.routes';
+app.use('/api/v1/admin/inventory', inventoryRouter);
 
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString(), env: process.env.NODE_ENV });
-});
+// API Documentation (Swagger)
+setupSwagger(app);
+
+// Health Check Endpoints
+app.use('/api', healthRoutes);
 
 // Global Error Handler
+import { setupSentryErrorHandler } from './config/sentry';
+setupSentryErrorHandler(app);
+
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Check if it's an operational error (AppError or has statusCode)
     const statusCode = err.statusCode || 500;

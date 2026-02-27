@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Search, Wallet, History, Phone, Calendar, ArrowUpRight, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 interface Customer {
     id: number;
@@ -24,22 +26,25 @@ interface Customer {
 }
 
 export default function AdminCustomersPage() {
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [fetchState, setFetchState] = useState<{ customers: Customer[]; loading: boolean }>({
+        customers: [],
+        loading: true,
+    });
     const [search, setSearch] = useState("");
-    const [selectedUser, setSelectedUser] = useState<Customer | null>(null);
-    const [rechargeAmount, setRechargeAmount] = useState("");
-    const [rechargeNote, setRechargeNote] = useState("");
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [rechargeModal, setRechargeModal] = useState<{ user: Customer | null; amount: string; note: string; processing: boolean }>({
+        user: null,
+        amount: "",
+        note: "",
+        processing: false,
+    });
 
     const fetchCustomers = async (term = "") => {
         try {
             const data = await api.get<Customer[]>(`/admin/customers${term ? `?search=${term}` : ""}`);
-            setCustomers(data);
+            setFetchState(prev => ({ ...prev, customers: data, loading: false }));
         } catch (err) {
             console.error("Failed to fetch customers", err);
-        } finally {
-            setLoading(false);
+            setFetchState(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -50,7 +55,6 @@ export default function AdminCustomersPage() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Fast polling for real-time updates (every 30s)
     useEffect(() => {
         const interval = setInterval(() => {
             fetchCustomers(search);
@@ -58,31 +62,49 @@ export default function AdminCustomersPage() {
         return () => clearInterval(interval);
     }, [search]);
 
+    const handleImpersonate = async (userId: number) => {
+        if (!confirm("Are you sure you want to impersonate this customer? You will be redirected to their dashboard.")) return;
+
+        try {
+            const res = await api.post<{ data: { token: string; user: Customer } }>(`/admin/impersonate`, { targetUserId: userId });
+            const { token, user } = res.data;
+
+            // The AuthContext normally handles saving the token.
+            // But since we are crossing app domains (admin -> customer app), a full page reload helps reset all state cleanly.
+            // We set it in localStorage exactly how the AuthContext expects it.
+            localStorage.setItem("auth_token", token);
+            localStorage.setItem("user", JSON.stringify(user));
+
+            // Hard navigate to the customer dashboard so that React trees unmount and remount fresh securely
+            window.location.href = "/app/dashboard";
+
+        } catch (err: any) {
+            alert(err.message || "Failed to impersonate customer");
+        }
+    };
+
     const handleRecharge = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedUser) return;
+        if (!rechargeModal.user) return;
 
-        setIsProcessing(true);
+        setRechargeModal(prev => ({ ...prev, processing: true }));
         try {
-            await api.post(`/admin/customers/${selectedUser.id}/wallet-adjust`, {
-                amount_paisa: Number(rechargeAmount) * 100,
-                note: rechargeNote || "Manual admin recharge"
+            await api.post(`/admin/customers/${rechargeModal.user!.id}/wallet-adjust`, {
+                amount_paisa: Number(rechargeModal.amount) * 100,
+                note: rechargeModal.note || "Manual admin recharge"
             });
             await fetchCustomers(search);
-            setSelectedUser(null);
-            setRechargeAmount("");
-            setRechargeNote("");
+            setRechargeModal({ user: null, amount: "", note: "", processing: false });
         } catch (err) {
             alert("Recharge failed");
-        } finally {
-            setIsProcessing(false);
+            setRechargeModal(prev => ({ ...prev, processing: false }));
         }
     };
 
     const toggleStatus = async (id: number, current: boolean) => {
         try {
             await api.patch(`/admin/customers/${id}/toggle-status`, { is_active: !current });
-            setCustomers(customers.map(c => c.id === id ? { ...c, is_active: !current } : c));
+            setFetchState(prev => ({ ...prev, customers: prev.customers.map(c => c.id === id ? { ...c, is_active: !current } : c) }));
         } catch (err) {
             alert("Failed to update status");
         }
@@ -99,7 +121,7 @@ export default function AdminCustomersPage() {
         return date.toLocaleDateString();
     };
 
-    if (loading) return <div className="p-8 text-slate-500">Loading Customer Registry...</div>;
+    if (fetchState.loading) return <div className="p-8 text-slate-500">Loading Customer Registry...</div>;
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -132,7 +154,7 @@ export default function AdminCustomersPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {customers.map((user) => (
+                        {fetchState.customers.map((user) => (
                             <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -218,7 +240,16 @@ export default function AdminCustomersPage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => setSelectedUser(user)}
+                                        onClick={() => handleImpersonate(user.id)}
+                                        className="rounded-xl border-brand-blue/20 text-brand-blue hover:bg-brand-blue/10 font-bold"
+                                        title="Log in as this customer"
+                                    >
+                                        Impersonate
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setRechargeModal(prev => ({ ...prev, user }))}
                                         className="rounded-xl bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 font-bold"
                                     >
                                         Recharge
@@ -229,59 +260,60 @@ export default function AdminCustomersPage() {
                     </tbody>
                 </table>
                 {
-                    customers.length === 0 && (
+                    fetchState.customers.length === 0 && (
                         <div className="p-20 text-center text-slate-400">No customers found matching your criteria.</div>
                     )
                 }
             </div >
 
-            {/* Recharge Modal */}
             {
-                selectedUser && (
+                rechargeModal.user && (
                     <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
                         <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl space-y-6">
                             <div className="flex justify-between items-center">
                                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manual Recharge</h2>
-                                <button onClick={() => setSelectedUser(null)} className="text-slate-400 hover:text-slate-600 font-bold">Close</button>
+                                <button onClick={() => setRechargeModal(prev => ({ ...prev, user: null }))} className="text-slate-400 hover:text-slate-600 font-bold">Close</button>
                             </div>
 
                             <div className="bg-slate-50 rounded-2xl p-4 flex gap-4 items-center">
                                 <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-brand-blue">
-                                    {selectedUser.name ? selectedUser.name[0] : "#"}
+                                    {rechargeModal.user.name ? rechargeModal.user.name[0] : "#"}
                                 </div>
                                 <div>
-                                    <p className="font-bold text-slate-900">{selectedUser.name || "New Customer"}</p>
-                                    <p className="text-xs text-slate-400">Current Balance: ₹{(selectedUser.balance || 0) / 100}</p>
+                                    <p className="font-bold text-slate-900">{rechargeModal.user.name || "New Customer"}</p>
+                                    <p className="text-xs text-slate-400">Current Balance: ₹{(rechargeModal.user.balance || 0) / 100}</p>
                                 </div>
                             </div>
 
                             <form onSubmit={handleRecharge} className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount (₹)</label>
+                                    <label htmlFor="recharge-amount" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Amount (₹)</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
                                         <input
+                                            id="recharge-amount"
                                             type="number"
                                             required
                                             className="w-full bg-slate-50 border-transparent rounded-2xl pl-8 pr-4 py-4 text-lg font-bold focus:ring-2 focus:ring-brand-blue"
                                             placeholder="500"
-                                            value={rechargeAmount}
-                                            onChange={e => setRechargeAmount(e.target.value)}
+                                            value={rechargeModal.amount}
+                                            onChange={e => setRechargeModal(prev => ({ ...prev, amount: e.target.value }))}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Internal Note</label>
+                                    <label htmlFor="recharge-note" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Internal Note</label>
                                     <input
+                                        id="recharge-note"
                                         className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm focus:ring-2 focus:ring-brand-blue"
                                         placeholder="Cash collected / Promotional credit"
-                                        value={rechargeNote}
-                                        onChange={e => setRechargeNote(e.target.value)}
+                                        value={rechargeModal.note}
+                                        onChange={e => setRechargeModal(prev => ({ ...prev, note: e.target.value }))}
                                     />
                                 </div>
-                                <Button type="submit" disabled={isProcessing} className="w-full bg-brand-blue text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2">
+                                <Button type="submit" disabled={rechargeModal.processing} className="w-full bg-brand-blue text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2">
                                     <ArrowUpRight size={20} />
-                                    {isProcessing ? "Processing..." : "Confirm Credit"}
+                                    {rechargeModal.processing ? "Processing..." : "Confirm Credit"}
                                 </Button>
                             </form>
                         </div>

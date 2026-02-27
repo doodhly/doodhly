@@ -30,15 +30,37 @@ export default function DeliveryDetailPage() {
     const handleVerify = async () => {
         if (!couponCode || couponCode.length < 4) return;
         setLoading(true);
+
+        // Capture GPS
+        let coords;
+        try {
+            if (navigator.geolocation) {
+                const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 5000 // 5s timeout
+                    });
+                });
+                coords = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                };
+            }
+        } catch (error) {
+            console.warn("GPS failed", error);
+            // We verify even if GPS fails, but log it (or could block if strict)
+        }
+
         try {
             if (isOnline) {
-                await verifyDelivery(delivery.id, couponCode);
+                await verifyDelivery(delivery.id, couponCode, coords);
             } else {
                 addToQueue({
                     id: crypto.randomUUID(),
                     type: "VERIFY",
                     deliveryId: delivery.id,
-                    payload: { code: couponCode },
+                    payload: { code: couponCode, coords },
                     timestamp: Date.now()
                 });
             }
@@ -122,8 +144,9 @@ export default function DeliveryDetailPage() {
                 {!isLocked ? (
                     <div className="space-y-6">
                         <div className="bg-slate-900 p-6 rounded-3xl border border-white/10 shadow-lg">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">SECURE DELIVERY CODE</label>
+                            <label htmlFor="delivery-code" className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">SECURE DELIVERY CODE</label>
                             <input
+                                id="delivery-code"
                                 type="text"
                                 inputMode="numeric"
                                 pattern="[0-9]*"

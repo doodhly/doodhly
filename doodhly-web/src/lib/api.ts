@@ -37,7 +37,7 @@ const getApiBaseUrl = () => {
 
 const getFinalApiUrl = () => process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
-export class ApiError extends Error {
+class ApiError extends Error {
     status: number;
     data: any;
 
@@ -67,10 +67,10 @@ async function fetchWrapper<T>(endpoint: string, options: FetchOptions = {}): Pr
     // Proxy Strategy: If baseUrl is relative (/api_backend), use it directly
     let url = "";
     if (baseUrl.startsWith('/')) {
-        url = `${baseUrl}${finalEndpoint}`;
+        url = `${baseUrl}${finalEndpoint.startsWith('/') ? finalEndpoint : '/' + finalEndpoint}`;
     } else {
         const finalBaseUrl = baseUrl.startsWith('http') ? baseUrl : `http://${baseUrl}`;
-        url = `${finalBaseUrl}${finalEndpoint}`;
+        url = `${finalBaseUrl}${finalEndpoint.startsWith('/') ? finalEndpoint : '/' + finalEndpoint}`;
     }
 
     const headers: Record<string, string> = {

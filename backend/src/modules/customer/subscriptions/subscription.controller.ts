@@ -4,12 +4,15 @@ import { SubscriptionService } from './subscription.service';
 import { requireAuth } from '../../../core/middleware/auth.middleware';
 import { AppError } from '../../../core/errors/app-error';
 
+import { validate } from '../../../core/middleware/validate.middleware';
+import { createSubscriptionSchema, pauseSubscriptionSchema } from '../../../core/validation/subscription.schema';
+
 const router = Router();
 const subService = new SubscriptionService();
 
-router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requireAuth, validate(createSubscriptionSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const cityId = req.user?.city_id || 1; // Fallback to 1 (Sakti) if context missing
+        const cityId = req.user?.city_id || 1;
         const result = await subService.createSubscription(req.user!.id, cityId.toString(), req.body);
         res.status(201).json(result);
     } catch (err) {
@@ -26,11 +29,9 @@ router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunct
     }
 });
 
-router.patch('/:id/pause', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/:id/pause', requireAuth, validate(pauseSubscriptionSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { start_date, end_date } = req.body;
-        if (!start_date) throw new AppError('start_date required', 400);
-
         await subService.pauseSubscription(req.user!.id, req.params.id as string, start_date, end_date);
         res.status(200).json({ message: 'Paused' });
     } catch (err) {

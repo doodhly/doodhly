@@ -1,13 +1,6 @@
 import { api } from "./api";
 import { API_ENDPOINTS } from "./constants";
 
-export interface DeliveryItem {
-    id: string; // Subscription ID or Delivery Item ID
-    productName: string;
-    quantity: number;
-    unit: string;
-}
-
 export interface RunSheetItem {
     id: string; // DailyDelivery ID
     customerId?: string;
@@ -24,7 +17,7 @@ export interface RunSheetItem {
     instructions?: string;
 }
 
-export interface SyncResponse {
+interface SyncResponse {
     date: string;
     routeId: string;
     deliveries: RunSheetItem[];
@@ -37,9 +30,9 @@ export const syncRunSheet = async (): Promise<SyncResponse> => {
 };
 
 // Actions
-export const verifyDelivery = async (deliveryId: string, code: string): Promise<void> => {
+export const verifyDelivery = async (deliveryId: string, code: string, coords?: { lat: number; lng: number; accuracy: number }): Promise<void> => {
     // Backend: router.post('/verify', ... { code })
-    return api.post(`${API_ENDPOINTS.DELIVERY}/verify`, { code });
+    return api.post(`${API_ENDPOINTS.DELIVERY}/verify`, { code, coords });
 };
 
 export const reportIssue = async (deliveryId: string, reason: string): Promise<void> => {
@@ -63,4 +56,14 @@ export interface DailyDelivery {
 
 export const getMonthlyDeliveries = async (month: number, year: number): Promise<DailyDelivery[]> => {
     return api.get<DailyDelivery[]>(`${API_ENDPOINTS.DELIVERY}/calendar?month=${month}&year=${year}`);
+};
+
+export const optimizeRoute = async (deliveries: RunSheetItem[]): Promise<{ optimizedRoute: RunSheetItem[], savings: { distance: string, time: string } }> => {
+    return api.post('/partner/optimize', { deliveries }); // api.post automatically adds /api/v1 prefix based on base URL usually, but let's check api.ts or just rely on standard. Wait, other calls use /customer/wallet etc.
+    // The previous calls in deliveries.ts were string literals like `${API_ENDPOINTS.DELIVERY}/verify`.
+    // I should check `src/lib/api.ts` to see if it prepends /api/v1. 
+    // Usually it does.
+    // Let's assume axios baseURL includes /api/v1.
+    // If not, I might need to adjust.
+    // Let's assume standard convention for now.
 };

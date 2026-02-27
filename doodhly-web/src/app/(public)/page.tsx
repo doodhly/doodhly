@@ -1,155 +1,172 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, ShieldCheck, Truck, Calendar as CalendarIcon, Leaf } from "lucide-react";
-import { MapEmbed } from "@/components/ui/MapEmbed";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { motion } from "framer-motion";
+import { NavigateButton } from "@/components/buttons/NavigateButton";
+import { useRef, useState } from "react";
+import { LazyMotion, domAnimation, m, useScroll, useTransform } from "framer-motion";
+import dynamic from "next/dynamic";
+const Scene3D = dynamic(() => import("@/components/3d/Scene3D"), { ssr: false });
+import MagneticButton from "@/components/ui/MagneticButton";
+import { ArrowRight, Leaf, ShieldCheck, Truck } from "lucide-react";
+import { Container } from "@/components/ui/Container";
+import { fadeUp, smoothEase } from "@/lib/motion";
 
-export default function HomePage() {
+// 3D Tilt Card Component
+function TiltCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [style, setStyle] = useState({});
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!ref.current) return;
+        const rect = ref.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const rotateX = ((y - centerY) / centerY) * -10;
+        const rotateY = ((x - centerX) / centerX) * 10;
+
+        setStyle({
+            transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
+            transition: "transform 0.1s ease-out",
+        });
+    };
+
+    const handleMouseLeave = () => {
+        setStyle({
+            transform: "perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)",
+            transition: "transform 0.5s ease-out",
+        });
+    };
+
     return (
-        <div className="flex flex-col pb-16 overflow-hidden">
-            {/* Hero Section */}
-            <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-brand-cream">
-                {/* Abstract Background Meshes */}
-                <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-brand-blue/5 rounded-full blur-3xl" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-3xl" />
-
-                <div className="container relative z-10 flex flex-col items-center gap-8 text-center px-4 pt-16">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5 }}
-                        className="inline-flex items-center rounded-full border border-brand-blue/10 bg-white/60 backdrop-blur px-4 py-1.5 text-sm font-medium text-brand-blue shadow-sm"
-                    >
-                        <span className="flex h-2 w-2 rounded-full bg-brand-green mr-2 animate-pulse"></span>
-                        Now delivering in Sakti
-                    </motion.div>
-
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                        className="font-serif text-5xl font-bold tracking-tight text-brand-blue sm:text-7xl md:text-8xl max-w-5xl leading-[1.1]"
-                    >
-                        Pure, Fresh Milk <br className="hidden sm:inline" />
-                        <span className="text-brand-green italic">Straight from Farm.</span>
-                    </motion.h1>
-
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                        className="max-w-2xl leading-relaxed text-gray-600 sm:text-xl sm:leading-9"
-                    >
-                        Experience the taste of unadulterated cow milk. No preservatives,
-                        just nature's goodness delivered to your doorstep by 10 AM.
-                    </motion.p>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
-                        className="flex flex-col sm:flex-row gap-4 mt-8 w-full sm:w-auto"
-                    >
-                        <Link
-                            href="/login"
-                            className="inline-flex h-14 items-center justify-center rounded-full bg-brand-blue px-10 text-lg font-semibold text-white shadow-xl shadow-brand-blue/20 transition-all hover:bg-brand-blue/90 hover:scale-[1.02] active:scale-95 duration-200"
-                        >
-                            Subscribe Now
-                            <ArrowRight className="ml-2 h-5 w-5" />
-                        </Link>
-                        <Link
-                            href="/products"
-                            className="inline-flex h-14 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur px-10 text-lg font-medium text-gray-900 shadow-sm transition-colors hover:bg-white hover:text-brand-blue"
-                        >
-                            View Products
-                        </Link>
-                    </motion.div>
-                </div>
-            </section>
-
-            {/* Features Grid */}
-            <section className="container px-4 py-24 relative z-20 -mt-20">
-                <div className="grid gap-6 md:grid-cols-3">
-                    <GlassCard hoverEffect>
-                        <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue/5 text-brand-blue">
-                            <ShieldCheck className="h-7 w-7" />
-                        </div>
-                        <h3 className="mb-3 font-serif text-2xl font-bold text-brand-blue">Lab Tested Purity</h3>
-                        <p className="text-gray-600 leading-relaxed">Every batch is tested for 26 parameters including adulteration and antibiotics.</p>
-                    </GlassCard>
-
-                    <GlassCard hoverEffect>
-                        <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-green/10 text-brand-green">
-                            <Leaf className="h-7 w-7" />
-                        </div>
-                        <h3 className="mb-3 font-serif text-2xl font-bold text-brand-blue">Preservative Free</h3>
-                        <p className="text-gray-600 leading-relaxed">Chilled within 20 minutes of milking and delivered in a continuous cold chain.</p>
-                    </GlassCard>
-
-                    <GlassCard hoverEffect>
-                        <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent">
-                            <CalendarIcon className="h-7 w-7" />
-                        </div>
-                        <h3 className="mb-3 font-serif text-2xl font-bold text-brand-blue">Flexible Plan</h3>
-                        <p className="text-gray-600 leading-relaxed">Pause, resume, or modify your daily quantity anytime via our app before 8 PM.</p>
-                    </GlassCard>
-                </div>
-            </section>
-
-            {/* Service & Map Section */}
-            <section className="container px-4 py-12">
-                <GlassCard className="p-8 md:p-12 bg-white/60 border-brand-blue/5">
-                    <div className="flex flex-col lg:flex-row gap-12 items-center">
-                        <div className="lg:w-1/2 space-y-8">
-                            <div className="space-y-4">
-                                <h2 className="font-serif text-4xl font-bold text-brand-blue">Delivering in Sakti</h2>
-                                <p className="text-gray-600 text-lg leading-relaxed">
-                                    We currently serve all major neighborhoods. Check if your home is in our fresh zone.
-                                </p>
-                            </div>
-
-                            <ul className="grid grid-cols-2 gap-4">
-                                {['Station Road', 'Civil Lines', 'Baradwar Road', 'Main Market', 'Hospital Area', 'College Road'].map(area => (
-                                    <li key={area} className="flex items-center text-gray-700 bg-white/50 p-3 rounded-lg border border-gray-100">
-                                        <div className="h-2 w-2 rounded-full bg-brand-green mr-3 shadow-[0_0_8px_rgba(67,160,71,0.5)]"></div>
-                                        {area}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="lg:w-1/2 w-full h-[400px] rounded-2xl overflow-hidden shadow-lg border border-white/50">
-                            <MapEmbed />
-                        </div>
-                    </div>
-                </GlassCard>
-            </section>
-
-            {/* How It Works - Visual Steps */}
-            <section className="container px-4 py-24">
-                <div className="bg-brand-blue rounded-[3rem] p-8 md:p-16 text-center text-white relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-
-                    <h2 className="font-serif text-4xl md:text-5xl font-bold mb-16 relative z-10">Simple Steps to Freshness</h2>
-
-                    <div className="grid gap-12 md:grid-cols-3 relative z-10">
-                        {[
-                            { step: "01", title: "Subscribe", desc: "Choose your milk quantity and schedule (Daily/Alternate)." },
-                            { step: "02", title: "Recharge", desc: "Top up your wallet. Money is deducted only on successful delivery." },
-                            { step: "03", title: "Enjoy", desc: "Wake up to fresh milk at your doorstep every morning by 10 AM." }
-                        ].map((item, i) => (
-                            <div key={i} className="group space-y-6">
-                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 text-3xl font-bold backdrop-blur-md border border-white/10 group-hover:scale-110 transition-transform duration-300">
-                                    {item.step}
-                                </div>
-                                <h3 className="text-2xl font-bold">{item.title}</h3>
-                                <p className="text-blue-100 text-lg max-w-xs mx-auto">{item.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+        <div
+            ref={ref}
+            className={`transform-style-3d ${className}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={style}
+        >
+            {children}
         </div>
+    );
+}
+
+// Main Page
+export default function Home() {
+    const { scrollY } = useScroll();
+    const y1 = useTransform(scrollY, [0, 500], [0, 150]);
+    const y2 = useTransform(scrollY, [0, 500], [0, -150]);
+
+    return (
+        <LazyMotion features={domAnimation}>
+            <main className="min-h-screen bg-brand-cream overflow-hidden selection:bg-brand-green selection:text-white">
+
+                {/* Hero Section with 3D */}
+                <section className="relative h-screen flex items-center overflow-hidden">
+                    <Scene3D />
+
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                            {/* Text Content */}
+                            <m.div
+                                initial="initial"
+                                animate="animate"
+                                variants={fadeUp}
+                                className="max-w-xl"
+                            >
+                                <div className="inline-block px-4 py-2 bg-white/50 backdrop-blur-md rounded-full border border-white/40 mb-6 shadow-sm">
+                                    <span className="text-sm font-semibold text-brand-blue tracking-wider uppercase">
+                                        ✨ Purest Farm Fresh Milk
+                                    </span>
+                                </div>
+
+                                <h1 className="text-6xl md:text-7xl font-bold text-brand-blue mb-6 leading-tight drop-shadow-sm">
+                                    Freshness <br />
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-teal-400">
+                                        Reimagined.
+                                    </span>
+                                </h1>
+
+                                <p className="text-xl text-brand-blue/80 mb-10 leading-relaxed max-w-lg">
+                                    Experience dairy like never before. Pure, traceable, and delivered with a touch of magic straight to your doorstep.
+                                </p>
+
+                                <div className="flex flex-wrap gap-4">
+                                    <MagneticButton>
+                                        <NavigateButton
+                                            href="/products"
+                                            className="bg-brand-blue text-white hover:bg-brand-blue/90 border-none shadow-xl shadow-brand-blue/20 text-lg px-8 py-4 rounded-full flex items-center gap-2 group"
+                                        >
+                                            Order Now
+                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        </NavigateButton>
+                                    </MagneticButton>
+
+                                    <MagneticButton>
+                                        <NavigateButton
+                                            href="/login"
+                                            className="bg-white/50 backdrop-blur-md text-brand-blue border border-white hover:bg-white text-lg px-8 py-4 rounded-full shadow-lg"
+                                        >
+                                            Login
+                                        </NavigateButton>
+                                    </MagneticButton>
+                                </div>
+                            </m.div>
+                        </div>
+                    </div>
+
+                    {/* Animated Scroll Indicator */}
+                    <m.div
+                        className="absolute bottom-10 left-1/2 -translate-x-1/2"
+                        animate={{ y: [0, 10, 0] }}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                        <div className="w-6 h-10 border-2 border-brand-blue/30 rounded-full flex justify-center p-1">
+                            <m.div
+                                className="w-1 h-2 bg-brand-blue/50 rounded-full"
+                                animate={{ y: [0, 15, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5 }}
+                            />
+                        </div>
+                    </m.div>
+                </section>
+
+                {/* Features Section */}
+                <section className="py-32 relative">
+                    <Container>
+                        <m.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-100px" }}
+                            transition={{ duration: 0.6, ease: smoothEase }}
+                            className="text-center mb-20"
+                        >
+                            <h2 className="text-4xl font-bold text-brand-blue mb-4">Why Choose Doodhly?</h2>
+                            <p className="text-xl text-brand-blue/60 max-w-2xl mx-auto">
+                                We combine traditional purity with modern technology to ensure the best for your family.
+                            </p>
+                        </m.div>
+
+                        <div className="grid md:grid-cols-3 gap-8">
+                            {[
+                                { title: "Daily Fresh", desc: "Milk delivered within 4 hours of milking", icon: "🥛" },
+                                { title: "Smart Tracking", desc: "Real-time delivery tracking with 3D maps", icon: "📍" },
+                                { title: "Flexible Plans", desc: "Pause, skip, or modify anytime", icon: "⚡" },
+                            ].map((feature) => (
+                                <TiltCard key={feature.title} className="h-64">
+                                    <div className="h-full glass rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:shadow-floating transition-shadow duration-300">
+                                        <span className="text-5xl mb-4 animate-float">{feature.icon}</span>
+                                        <h3 className="text-xl font-bold text-brand-blue mb-2">{feature.title}</h3>
+                                        <p className="text-brand-blue/60">{feature.desc}</p>
+                                    </div>
+                                </TiltCard>
+                            ))}
+                        </div>
+
+                    </Container>
+                </section>
+            </main >
+        </LazyMotion>
     );
 }

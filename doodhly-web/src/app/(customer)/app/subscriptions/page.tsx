@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getSubscriptions, Subscription } from "@/lib/subscriptions";
 import { SubscriptionCard } from "@/components/customer/SubscriptionCard";
+import { Container } from "@/components/ui/Container";
 
 export default function SubscriptionsPage() {
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -29,7 +30,7 @@ export default function SubscriptionsPage() {
     }, []);
 
     return (
-        <div className="p-6 space-y-6">
+        <Container className="p-6 space-y-6">
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-serif text-brand-blue">My Subscriptions</h1>
@@ -63,6 +64,7 @@ export default function SubscriptionsPage() {
                     ))}
                 </div>
             )}
-        </div>
+
+        </Container >
     );
 }

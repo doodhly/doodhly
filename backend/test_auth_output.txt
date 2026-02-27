@@ -1,0 +1,45 @@
+﻿node.exe : ts-jest[ts-jest-transformer] 
+(WARN) Define `ts-jest` config under 
+`globals` is deprecated. Please do
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: 
+    (ts-jest[ts-jest...ated. Please do:Str  
+  ing) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommand 
+   Error
+ 
+transform: {
+    <transform_regex>: ['ts-jest', { /* 
+ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-
+jest/docs/getting-started/presets#advanced
+FAIL src/modules/auth/__tests__/auth.service
+.test.ts
+  ΓùÅ Test suite failed to run
+
+    [96msrc/modules/auth/__tests__/auth.ser
+vice.test.ts[0m:[93m2[0m:[93m10[0m - 
+[91merror[0m[90m TS2614: [0mModule 
+'"@/config/db"' has no exported member 
+'db'. Did you mean to use 'import db from 
+"@/config/db"' instead?
+
+    [7m2[0m import { db } from 
+'@/config/db';
+    [7m [0m [91m         ~~[0m
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        7.419 s
+Ran all test suites matching 
+auth.service.test.ts.
+(node:4616) Warning: `--localstorage-file` 
+was provided without a valid path
+(Use `node --trace-warnings ...` to show 
+where the warning was created)

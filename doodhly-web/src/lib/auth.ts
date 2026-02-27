@@ -8,22 +8,10 @@ export interface User {
     role: UserRole;
     default_city_id?: string;
     name?: string;
+    referral_code?: string;
+    streak_count?: number;
+    current_tier?: string;
 }
-
-// Re-export types to avoid breaking changes
-
-
-export const sendOtp = async (phone: string): Promise<void> => {
-    return api.post("/auth/send-otp", { phone });
-};
-
-export const verifyOtp = async (phone: string, otp: string): Promise<{ user: User }> => {
-    return api.post("/auth/verify-otp", { phone, otp });
-};
-
-export const logout = async (): Promise<void> => {
-    return api.post("/auth/logout", {});
-};
 
 export const getUserSession = async (): Promise<User | null> => {
     try {

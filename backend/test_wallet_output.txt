@@ -1,0 +1,45 @@
+﻿node.exe : ts-jest[ts-jest-transformer] 
+(WARN) Define `ts-jest` config under 
+`globals` is deprecated. Please do
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: 
+    (ts-jest[ts-jest...ated. Please do:Str  
+  ing) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommand 
+   Error
+ 
+transform: {
+    <transform_regex>: ['ts-jest', { /* 
+ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-
+jest/docs/getting-started/presets#advanced
+FAIL src/modules/customer/wallet/__tests__/w
+allet.service.test.ts
+  ΓùÅ Test suite failed to run
+
+    [96msrc/modules/customer/wallet/__tests
+__/wallet.service.test.ts[0m:[93m14[0m:[
+93m61[0m - [91merror[0m[90m TS18046: 
+[0m'e' is of type 'unknown'.
+
+    [7m14[0m             
+console.log('Migrations already run or 
+error:', e.message);
+    [7m  [0m [91m                        
+                                    ~[0m
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        6.478 s
+Ran all test suites matching 
+wallet.service.test.ts.
+(node:7004) Warning: `--localstorage-file` 
+was provided without a valid path
+(Use `node --trace-warnings ...` to show 
+where the warning was created)

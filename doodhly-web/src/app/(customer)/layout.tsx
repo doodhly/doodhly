@@ -6,11 +6,20 @@ import { usePathname, useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Home, Calendar, Wallet, User as UserIcon, LogOut, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 function CustomerSidebar({ children }: { children: React.ReactNode }) {
-    const { user, loading, logout } = useAuth();
+    const { user, loading, logout, isImpersonating } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+
+    const handleExitImpersonation = () => {
+        // Clearing auth_token forces the layout/middleware to re-eval. 
+        // This will redirect to login, where the admin can log back in as themselves,
+        // or we could build a specific "/admin/revert" flow if we stored original admin token elsewhere.
+        // For simplicity, we just log them out of the impersonated session.
+        logout();
+    };
 
     if (loading) {
         return (
@@ -61,6 +70,7 @@ function CustomerSidebar({ children }: { children: React.ReactNode }) {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                aria-label={`Navigate to ${item.name}`}
                                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-medium transition-all duration-200 group ${isActive
                                     ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20 translate-x-1"
                                     : "text-gray-500 hover:bg-brand-blue/5 hover:text-brand-blue"
@@ -85,7 +95,24 @@ function CustomerSidebar({ children }: { children: React.ReactNode }) {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-72 pb-24 md:pb-8 pt-8 px-4 md:px-8 max-w-7xl mx-auto w-full">
+            <main className="flex-1 md:ml-72 pb-24 md:pb-8 pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full relative">
+                {isImpersonating && (
+                    <div className="mb-6 w-full bg-red-500 rounded-2xl shadow-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-6 z-40 border-2 border-red-600">
+                        <div className="flex items-center gap-3 text-white">
+                            <span className="text-2xl">⚠️</span>
+                            <div>
+                                <p className="font-bold text-lg leading-tight">Admin Impersonation Mode Active</p>
+                                <p className="text-sm font-medium text-red-100">You are acting as {user?.name || "this customer"}. All actions are audited.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleExitImpersonation}
+                            className="bg-white text-red-600 font-bold px-6 py-2 rounded-xl text-sm hover:bg-red-50 transition-colors whitespace-nowrap"
+                        >
+                            Exit Session
+                        </button>
+                    </div>
+                )}
                 {children}
             </main>
 
@@ -98,6 +125,7 @@ function CustomerSidebar({ children }: { children: React.ReactNode }) {
                         <Link
                             key={item.href}
                             href={item.href}
+                            aria-label={`Navigate to ${item.name}`}
                             className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isActive ? "text-brand-blue" : "text-gray-400"
                                 }`}
                         >
@@ -113,30 +141,14 @@ function CustomerSidebar({ children }: { children: React.ReactNode }) {
     );
 }
 
-function ProtectedCustomerLayout({ children }: { children: React.ReactNode }) {
-    const { user, loading } = useAuth();
-    const router = useRouter();
-    const pathname = usePathname();
-
-    useEffect(() => {
-        if (!loading) {
-            if (!user) {
-                router.push('/login');
-            } else if (!user.name && user.role === 'CUSTOMER' && pathname !== '/app/onboarding') {
-                router.push('/app/onboarding');
-            }
-        }
-    }, [user, loading, router, pathname]);
-
-    return <CustomerSidebar>{children}</CustomerSidebar>;
-}
-
 export default function CustomerLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     return (
-        <ProtectedCustomerLayout>{children}</ProtectedCustomerLayout>
+        <AuthGuard allowedRoles={['CUSTOMER']}>
+            <CustomerSidebar>{children}</CustomerSidebar>
+        </AuthGuard>
     );
 }

@@ -4,6 +4,8 @@ import "@/styles/globals.css";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import QueryProvider from "@/providers/query-provider";
+
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const merriweather = Merriweather({
@@ -17,7 +19,6 @@ export const metadata: Metadata = {
     description: "Fresh, pure cow milk delivered daily to your doorstep in Sakti.",
 };
 
-
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -27,14 +28,18 @@ export default function RootLayout({
         <html lang="en">
             <body
                 className={cn(
-                    "min-h-screen bg-brand-cream font-sans antialiased",
+                    "min-h-screen bg-brand-cream font-sans antialiased selection:bg-brand-green selection:text-white",
                     inter.variable,
                     merriweather.variable
                 )}
             >
                 <ErrorBoundary>
                     <AuthProvider>
-                        {children}
+                        <QueryProvider>
+                            <main className="flex-1 w-full relative">
+                                {children}
+                            </main>
+                        </QueryProvider>
                     </AuthProvider>
                 </ErrorBoundary>
             </body>

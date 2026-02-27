@@ -1,5 +1,9 @@
 # Doodhly Platform
 
+![CI/CD](https://github.com/YOUR_USERNAME/doodhly/actions/workflows/ci.yml/badge.svg)
+![Lighthouse](https://github.com/YOUR_USERNAME/doodhly/actions/workflows/lighthouse.yml/badge.svg)
+![Coverage](https://codecov.io/gh/YOUR_USERNAME/doodhly/branch/main/graph/badge.svg)
+
 Doodhly is a modern dairy subscription and delivery management platform.
 
 ## Project Structure

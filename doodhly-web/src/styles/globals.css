@@ -1,51 +1,70 @@
-/* Leaflet Map Styles */
-@import 'leaflet/dist/leaflet.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 251, 242;
-  /* Start Cream */
-  --background-end-rgb: 255, 255, 255;
-  /* End White */
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-}
-
-@layer utilities {
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/50 shadow-sm transition-all duration-300;
+@layer base {
+  html {
+    scroll-behavior: smooth;
   }
 
-  .glass-card-hover {
-    @apply hover:bg-white/90 hover:shadow-md hover:-translate-y-1;
+  body {
+    @apply bg-brand-cream text-brand-blue antialiased selection:bg-brand-green selection:text-white;
+    perspective: 1000px;
   }
 
-  .glass-button {
-    @apply bg-brand-blue/90 text-white backdrop-blur-sm hover:bg-brand-blue shadow transition-all active:scale-95;
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-blue/20 rounded-full hover:bg-brand-blue/40 transition-colors;
+  }
+}
+
+@layer components {
+  .container-3d {
+    @apply relative perspective-1000;
   }
 
   .text-shadow-sm {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .card-flip {
+    @apply relative w-full h-full transform-style-3d transition-transform duration-600;
+  }
+
+  .card-flip.flipped {
+    @apply rotate-y-180;
+  }
+
+  .card-front,
+  .card-back {
+    @apply absolute w-full h-full backface-hidden;
+  }
+
+  .card-back {
+    @apply rotate-y-180;
+  }
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-}
-
-.leaflet-control-attribution {
-  font-size: 8px !important;
-}
-
-.leaflet-bar {
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

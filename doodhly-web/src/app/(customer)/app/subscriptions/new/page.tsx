@@ -9,9 +9,21 @@ import { Button } from "@/components/ui/Button";
 
 export default function NewSubscriptionPage() {
     const router = useRouter();
-    const [availableProducts, setAvailableProducts] = useState<any[]>([]);
-    const [addresses, setAddresses] = useState<any[]>([]);
-    const [balance, setBalance] = useState<number>(0);
+    const [pageState, setPageState] = useState<{
+        availableProducts: any[];
+        addresses: any[];
+        balance: number;
+        loading: boolean;
+        error: string | null;
+        submitting: boolean;
+    }>({
+        availableProducts: [],
+        addresses: [],
+        balance: 0,
+        loading: true,
+        error: null,
+        submitting: false,
+    });
     const [formData, setFormData] = useState({
         productId: "",
         addressId: "",
@@ -19,9 +31,6 @@ export default function NewSubscriptionPage() {
         frequency: "DAILY",
         startDate: "",
     });
-    const [loading, setLoading] = useState(false);
-    const [fetching, setFetching] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -32,43 +41,45 @@ export default function NewSubscriptionPage() {
                     api.get<{ balance: number }>('/customer/wallet')
                 ]);
 
-                setAvailableProducts(productsRes);
-                setAddresses(addressesRes);
-                setBalance(walletRes.balance);
-
-                const defaultAddr = addressesRes.find((a: any) => a.is_default) || addressesRes[0];
-
-                // Tomorrow as default start date
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-                setFormData(prev => ({
-                    ...prev,
-                    productId: productsRes.length > 0 ? productsRes[0].id.toString() : "",
-                    addressId: defaultAddr ? defaultAddr.id.toString() : "",
-                    startDate: tomorrowStr
-                }));
-
+                let initError: string | null = null;
                 if (walletRes.balance < 100) {
-                    setError("Insufficient balance. Please recharge your wallet (min ₹100) before subscribing.");
+                    initError = "Insufficient balance. Please recharge your wallet (min ₹100) before subscribing.";
                 } else if (addressesRes.length === 0) {
-                    setError("No delivery address found. Please add an address in your profile first.");
+                    initError = "No delivery address found. Please add an address in your profile first.";
                 }
+
+                setPageState(prev => ({
+                    ...prev,
+                    availableProducts: productsRes,
+                    addresses: addressesRes,
+                    balance: walletRes.balance,
+                    loading: false,
+                    error: initError,
+                }));
             } catch (err: any) {
                 console.error("Failed to load data", err);
-                setError("Initialization failed. Please try again.");
-            } finally {
-                setFetching(false);
+                setPageState(prev => ({ ...prev, loading: false, error: "Initialization failed. Please try again." }));
             }
         };
         fetchData();
     }, []);
 
+    useEffect(() => {
+        if (pageState.loading) return;
+        const defaultAddr = pageState.addresses.find((a: any) => a.is_default) || pageState.addresses[0];
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setFormData(prev => ({
+            ...prev,
+            productId: pageState.availableProducts.length > 0 ? pageState.availableProducts[0].id.toString() : "",
+            addressId: defaultAddr ? defaultAddr.id.toString() : "",
+            startDate: tomorrow.toISOString().split('T')[0]
+        }));
+    }, [pageState.loading, pageState.availableProducts, pageState.addresses]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-        setError(null);
+        setPageState(prev => ({ ...prev, submitting: true, error: null }));
 
         try {
             await api.post(API_ENDPOINTS.SUBSCRIPTIONS, {
@@ -80,12 +91,11 @@ export default function NewSubscriptionPage() {
             });
             router.push("/app/dashboard");
         } catch (err: any) {
-            setError(err.message || "Failed to create subscription");
-            setLoading(false);
+            setPageState(prev => ({ ...prev, error: err.message || "Failed to create subscription", submitting: false }));
         }
     };
 
-    if (fetching) {
+    if (pageState.loading) {
         return (
             <div className="flex items-center justify-center min-h-[40vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-brand-blue" />
@@ -97,15 +107,15 @@ export default function NewSubscriptionPage() {
         <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow mt-8">
             <h1 className="text-xl font-serif font-bold text-brand-blue mb-6">New Subscription</h1>
 
-            {error && (
+            {pageState.error && (
                 <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 flex flex-col gap-3">
-                    <p className="font-medium">{error}</p>
-                    {balance < 100 && (
+                    <p className="font-medium">{pageState.error}</p>
+                    {pageState.balance < 100 && (
                         <Button variant="outline" size="sm" className="w-fit text-red-700 border-red-200 hover:bg-red-100" onClick={() => router.push('/app/wallet')}>
                             Recharge Wallet
                         </Button>
                     )}
-                    {addresses.length === 0 && (
+                    {pageState.addresses.length === 0 && (
                         <Button variant="outline" size="sm" className="w-fit text-red-700 border-red-200 hover:bg-red-100" onClick={() => router.push('/app/addresses')}>
                             Add Address
                         </Button>
@@ -115,30 +125,32 @@ export default function NewSubscriptionPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                    <label htmlFor="subscription-product" className="block text-sm font-medium text-gray-700 mb-1">Product</label>
                     <select
+                        id="subscription-product"
                         className="w-full border rounded-lg p-2 bg-white"
                         value={formData.productId}
                         onChange={e => setFormData({ ...formData, productId: e.target.value })}
                         required
-                        disabled={balance < 100 || addresses.length === 0}
+                        disabled={pageState.balance < 100 || pageState.addresses.length === 0}
                     >
-                        {availableProducts.map((p: any) => (
+                        {pageState.availableProducts.map((p: any) => (
                             <option key={p.id} value={p.id}>{p.name} - ₹{p.price}</option>
                         ))}
                     </select>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
+                    <label htmlFor="subscription-address" className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
                     <select
+                        id="subscription-address"
                         className="w-full border rounded-lg p-2 bg-white"
                         value={formData.addressId}
                         onChange={e => setFormData({ ...formData, addressId: e.target.value })}
                         required
-                        disabled={balance < 100 || addresses.length === 0}
+                        disabled={pageState.balance < 100 || pageState.addresses.length === 0}
                     >
-                        {addresses.map(a => (
+                        {pageState.addresses.map(a => (
                             <option key={a.id} value={a.id}>{a.city}: {a.street}</option>
                         ))}
                     </select>
@@ -146,8 +158,9 @@ export default function NewSubscriptionPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                        <label htmlFor="subscription-quantity" className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
                         <input
+                            id="subscription-quantity"
                             type="number"
                             min="1"
                             max="10"
@@ -157,8 +170,9 @@ export default function NewSubscriptionPage() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                        <label htmlFor="subscription-frequency" className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
                         <select
+                            id="subscription-frequency"
                             className="w-full border rounded-lg p-2 bg-white"
                             value={formData.frequency}
                             onChange={e => setFormData({ ...formData, frequency: e.target.value })}
@@ -170,8 +184,9 @@ export default function NewSubscriptionPage() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <label htmlFor="subscription-start-date" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                     <input
+                        id="subscription-start-date"
                         type="date"
                         required
                         className="w-full border rounded-lg p-2"
@@ -191,10 +206,10 @@ export default function NewSubscriptionPage() {
                     </button>
                     <button
                         type="submit"
-                        disabled={loading || balance < 100 || addresses.length === 0}
+                        disabled={pageState.submitting || pageState.balance < 100 || pageState.addresses.length === 0}
                         className="flex-1 py-2 bg-brand-blue text-white rounded-lg font-medium hover:bg-opacity-90 disabled:opacity-50"
                     >
-                        {loading ? "Creating..." : "Confirm"}
+                        {pageState.submitting ? "Creating..." : "Confirm"}
                     </button>
                 </div>
             </form>

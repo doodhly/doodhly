@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getQueue, removeFromQueue, OfflineAction } from "../lib/offline-queue";
-import { verifyDelivery, reportIssue } from "../lib/deliveries";
+import { getQueue, removeFromQueue, OfflineAction } from "@/lib/offline-queue";
+import { verifyDelivery, reportIssue } from "@/lib/deliveries";
 import { toast } from "sonner"; // Assuming sonner or generic toast
 
 export function useOfflineSync() {
@@ -38,7 +38,7 @@ export function useOfflineSync() {
         for (const action of queue) {
             try {
                 if (action.type === "VERIFY") {
-                    await verifyDelivery(action.deliveryId, action.payload.couponCode);
+                    await verifyDelivery(action.deliveryId, action.payload.code, action.payload.coords);
                 } else if (action.type === "REPORT") {
                     await reportIssue(action.deliveryId, action.payload.reason);
                 }

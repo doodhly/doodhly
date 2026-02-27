@@ -4,7 +4,10 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Container } from "@/components/ui/Container";
 import { cn } from "@/lib/utils";
+import { Users, AlertCircle, Package, Wallet } from "lucide-react";
 
 interface DeliveryStat {
     status: string;
@@ -70,58 +73,40 @@ export default function AdminDashboardPage() {
     const completed = summary?.deliveries.find(d => d.status === 'DELIVERED')?.count || 0;
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8">
+        <Container className="p-6 space-y-8">
             <header className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Operations Hub</h1>
                     <p className="text-slate-500 font-medium">Real-time business monitoring</p>
                 </div>
-                <div className="bg-white border rounded-lg px-4 py-2 flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Live System</span>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={() => window.location.href = '/admin/users'}
+                        className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm"
+                    >
+                        Manage Users
+                    </Button>
+                    <div className="bg-white border rounded-lg px-4 py-2 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Live System</span>
+                    </div>
                 </div>
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-brand-blue text-white p-6 rounded-3xl shadow-xl shadow-brand-blue/20">
-                    <h3 className="text-sm font-bold opacity-80 uppercase tracking-widest mb-2">Today's Fulfillment</h3>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black">{completed}</span>
-                        <span className="text-xl opacity-60">/ {totalDeliveries}</span>
-                    </div>
-                    <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-white transition-all duration-1000"
-                            style={{ width: `${totalDeliveries > 0 ? (Number(completed) / totalDeliveries) * 100 : 0}%` }}
-                        />
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+                <GlassCard tilt className="p-6 flex flex-col justify-between">
                     <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Active Customers</h3>
-                        <div className="flex items-center gap-3">
-                            <span className="text-4xl font-black text-slate-900">{summary?.metrics?.activeUsers || 0}</span>
-                            <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-full border border-green-100 uppercase">Growth</span>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Users className="h-4 w-4 text-brand-green" />
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                Online Now
+                            </h3>
                         </div>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-2">Activity this month: <span className="font-bold text-slate-700">{summary?.metrics?.monthlyVisitors || 0}</span></p>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <div className="h-20 w-20 bg-brand-blue rounded-full blur-3xl" />
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
-                            Online Now
-                        </h3>
                         <span className="text-4xl font-black text-brand-blue">{summary?.metrics?.onlineUsers || 0}</span>
                     </div>
                     <p className="text-xs text-slate-500 mt-2">Active in last 5 minutes</p>
-                </div>
+                </GlassCard>
 
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Alerts & Issues</h3>
@@ -137,7 +122,7 @@ export default function AdminDashboardPage() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Inventory Management */}
@@ -173,8 +158,8 @@ export default function AdminDashboardPage() {
                         {summary?.recentIssues.length === 0 ? (
                             <div className="flex items-center justify-center h-full text-slate-400 text-sm">No issues reported today.</div>
                         ) : (
-                            summary?.recentIssues.map((issue, i) => (
-                                <div key={i} className="p-4 border-b last:border-0 flex gap-4">
+                            summary?.recentIssues.map((issue) => (
+                                <div key={`${issue.name}-${issue.updated_at}`} className="p-4 border-b last:border-0 flex gap-4">
                                     <div className="h-10 w-10 bg-red-50 rounded-full flex items-center justify-center text-red-500 font-bold text-xs shrink-0">!</div>
                                     <div>
                                         <p className="text-sm font-bold text-slate-900">{issue.name || "Customer"}</p>
@@ -189,6 +174,6 @@ export default function AdminDashboardPage() {
                     </div>
                 </section>
             </div>
-        </div>
+        </Container>
     );
 }

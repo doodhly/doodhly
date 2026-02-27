@@ -32,4 +32,36 @@ export class DeliveryService {
             )
             .orderBy('dd.id', 'asc');
     }
+
+    // WRITE: Process Offline Batch
+    async processOfflineBatch(updates: any[], driverId: string, driverCityId: number) {
+        const { DeliveryVerificationService } = require('./verification/coupon.service');
+        const verificationService = new DeliveryVerificationService();
+        const results = [];
+
+        for (const update of updates) {
+            try {
+                if (update.type === 'COUPON') {
+                    if (!update.code) throw new Error('Code missing');
+                    await verificationService.verifyCoupon(update.code, driverId);
+                    results.push({ id: update.id, success: true, status: 'DELIVERED' });
+                }
+                else if (update.type === 'ISSUE') {
+                    if (!update.reason) throw new Error('Reason missing');
+                    await verificationService.reportIssue(update.id, update.reason, driverId, driverCityId);
+                    results.push({ id: update.id, success: true, status: 'MISSED' });
+                } else {
+                    results.push({ id: update.id, success: false, error: 'Unknown Type' });
+                }
+            } catch (err: any) {
+                // Idempotency: If already scanned/refunded, treat as success
+                if (err.message === 'ALREADY_SCANNED' || err.status === 'ALREADY_REFUNDED' || err.message === 'COUPON_VOID') {
+                    results.push({ id: update.id, success: true, status: 'ALREADY_DONE' });
+                } else {
+                    results.push({ id: update.id, success: false, error: err.message || 'Processing failed' });
+                }
+            }
+        }
+        return results;
+    }
 }

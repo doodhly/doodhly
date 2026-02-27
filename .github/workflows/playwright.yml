@@ -1,0 +1,86 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: doodhly
+          MYSQL_USER: doodhly_service
+          MYSQL_PASSWORD: Milk@123
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Backend Dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install Frontend Dependencies
+      working-directory: ./doodhly-web
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      working-directory: ./doodhly-web
+      run: npx playwright install --with-deps
+
+    - name: Start Backend
+      working-directory: ./backend
+      env:
+        PORT: 5000
+        DB_HOST: 127.0.0.1
+        DB_USER: doodhly_service
+        DB_PASSWORD: Milk@123
+        DB_NAME: doodhly
+        NODE_ENV: test
+        JWT_SECRET: test_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        DISABLE_REDIS: 'true'
+        # Mock Twilio/Razorpay to prevent errors on startup validation
+        TWILIO_ACCOUNT_SID: mocksid
+        TWILIO_AUTH_TOKEN: mocktoken
+        TWILIO_PHONE_NUMBER: +15555555555
+        RAZORPAY_KEY_ID: mockkey
+        RAZORPAY_KEY_SECRET: mocksecret
+      run: |
+        npm run build
+        npm start &
+        npx wait-on http://localhost:5000/api/v1/health --timeout 30000
+
+    - name: Start Frontend
+      working-directory: ./doodhly-web
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+      run: |
+        npm run dev &
+        npx wait-on http://localhost:3000 --timeout 60000
+
+    - name: Run Playwright tests
+      working-directory: ./doodhly-web
+      run: npx playwright test
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: doodhly-web/playwright-report/
+        retention-days: 30

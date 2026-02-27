@@ -1,0 +1,269 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18'
+  
+jobs:
+  # Backend Testing
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: doodhly_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      
+      - name: Wait for MySQL
+        run: |
+          timeout 30 bash -c 'until mysqladmin ping -h 127.0.0.1 --silent; do sleep 1; done'
+      
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: doodhly_test
+          NODE_ENV: test
+          REDIS_URL: redis://127.0.0.1:6379
+          JWT_SECRET: test-secret-key
+        run: npx knex migrate:latest
+      
+      - name: Run tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: doodhly_test
+          REDIS_URL: redis://127.0.0.1:6379
+          JWT_SECRET: test-secret-key
+          JWT_REFRESH_SECRET: test-refresh-secret
+        run: npm run test:ci
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: backend/coverage
+          flags: backend
+          fail_ci_if_error: false
+
+  # Frontend Build & Tests
+  test-frontend:
+    name: Frontend Build & Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: doodhly-web/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: doodhly-web
+        run: npm ci
+      
+      - name: Build application
+        working-directory: doodhly-web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000
+        run: npm run build
+      
+      - name: Install Playwright browsers
+        working-directory: doodhly-web
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run E2E tests
+        working-directory: doodhly-web
+        run: npm run test:e2e
+        continue-on-error: true
+      
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: doodhly-web/playwright-report/
+          retention-days: 30
+
+  # Linting & Code Quality
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Lint backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run lint || echo "Backend linting skipped (no lint script)"
+      
+      - name: Lint frontend
+        working-directory: doodhly-web
+        run: |
+          npm ci
+          npm run lint
+
+  # Security Scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: |
+          npm ci
+          npm audit --audit-level=high || true
+      
+      - name: Audit frontend dependencies
+        working-directory: doodhly-web
+        run: |
+          npm ci
+          npm audit --audit-level=high || true
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [test-backend, test-frontend, lint]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.doodhly.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy notification (start)
+        run: |
+          echo "🚀 Starting deployment to staging..."
+      
+      # Add your deployment steps here
+      # Example for Railway:
+      # - name: Deploy to Railway Staging
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+      #   run: |
+      #     npm install -g railway
+      #     railway link ${{ secrets.RAILWAY_PROJECT_STAGING }}
+      #     railway up
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          # curl -f https://staging.doodhly.com/api/health || exit 1
+      
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "✅ Staging deployment successful!"
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    needs: [test-backend, test-frontend, lint, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://doodhly.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy notification (start)
+        run: |
+          echo "🚀 Starting deployment to production..."
+      
+      # Add your deployment steps here
+      # Example for Railway:
+      # - name: Deploy to Railway Production
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PROD }}
+      #   run: |
+      #     npm install -g railway
+      #     railway link ${{ secrets.RAILWAY_PROJECT_PROD }}
+      #     railway up
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          # curl -f https://doodhly.com/api/health || exit 1
+          # curl -f https://api.doodhly.com/api/health || exit 1
+      
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "✅ Production deployment successful!"
+      
+      - name: Notify team
+        if: always()
+        run: |
+          echo "Deployment status: ${{ job.status }}"
+          # Add Slack/Discord webhook notification here

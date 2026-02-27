@@ -1,0 +1,14 @@
+﻿node.exe : error: unknown option 
+'--video=on'
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpeci 
+   fied: (error: unknown option '--vi  
+  deo=on':String) [], RemoteExceptio   
+ n
+    + FullyQualifiedErrorId : NativeCo 
+   mmandError
+ 

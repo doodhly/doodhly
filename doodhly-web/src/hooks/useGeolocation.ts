@@ -29,7 +29,7 @@ export const useGeolocation = () => {
         }
     }, []);
 
-    const getPosition = useCallback((options?: PositionOptions, continuous: boolean = false) => {
+    const getPosition = useCallback((options?: PositionOptions, continuous: boolean = false, onSuccess?: (coords: { latitude: number; longitude: number }, accuracy: number) => void) => {
         if (!navigator.geolocation) {
             setState(prev => ({ ...prev, error: "Geolocation not supported" }));
             return;
@@ -46,15 +46,17 @@ export const useGeolocation = () => {
         };
 
         const successHandler = (position: GeolocationPosition) => {
+            const newCoords = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
             setState({
-                coords: {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                },
+                coords: newCoords,
                 accuracy: position.coords.accuracy,
                 error: null,
                 loading: false,
             });
+            onSuccess?.(newCoords, position.coords.accuracy);
         };
 
         const errorHandler = (error: GeolocationPositionError) => {
@@ -82,7 +84,6 @@ export const useGeolocation = () => {
         setState(prev => ({ ...prev, error: null }));
     }, []);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => stopTracking();
     }, [stopTracking]);

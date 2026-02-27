@@ -11,6 +11,7 @@ interface AuthContextType {
     refreshSession: () => Promise<void>;
     logout: () => Promise<void>;
     hasRole: (role: string | string[]) => boolean;
+    isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,14 +24,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isPublicPage = pathname === "/" || pathname === "/login" || pathname.startsWith("/products");
 
+    const [isImpersonating, setIsImpersonating] = useState(false);
+
     const refreshSession = async () => {
         setLoading(true);
         try {
             const sessionUser = await getUserSession();
             setUser(sessionUser);
+
+            // Check for impersonation flag
+            const token = localStorage.getItem("auth_token");
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.impersonatedBy) setIsImpersonating(true);
+                } catch (e) { }
+            }
         } catch (err) {
             console.error("Failed to fetch session", err);
             setUser(null);
+            setIsImpersonating(false);
         } finally {
             setLoading(false);
         }
@@ -61,7 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error("Logout error:", error);
         } finally {
             localStorage.removeItem('token');
+            localStorage.removeItem('auth_token');
             setUser(null);
+            setIsImpersonating(false);
             router.push('/login');
         }
     };
@@ -73,33 +88,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return user.role === role;
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-brand-cream">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="h-12 w-12 border-4 border-brand-blue/20 border-t-brand-blue rounded-full animate-spin" />
-                    <p className="text-brand-blue font-serif font-bold animate-pulse text-lg">Doodhly</p>
-                </div>
-            </div>
-        );
-    }
+    // We do NOT block rendering here. 
+    // Individual protected routes must handle loading state via AuthGuard.
+    // This allows public pages (Landing, etc.) to render immediately for SEO.
 
     return (
-        <AuthContext.Provider value={{ user, loading, refreshSession, logout, hasRole }}>
+        <AuthContext.Provider value={{ user, loading, refreshSession, logout, hasRole, isImpersonating }}>
             {children}
         </AuthContext.Provider>
     );
 }
-
-export const useAdmin = () => {
-    const { user } = useAuth();
-    return user?.role === 'ADMIN';
-};
-
-export const usePartner = () => {
-    const { user } = useAuth();
-    return user?.role === 'DELIVERY_PARTNER';
-};
 
 export function useAuth() {
     const context = useContext(AuthContext);

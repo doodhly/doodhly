@@ -1,6 +1,7 @@
 
 import twilio from 'twilio';
 import { AppError } from '../../core/errors/app-error';
+import logger from '../../core/utils/logger';
 
 export class SmsService {
     private client;
@@ -14,7 +15,7 @@ export class SmsService {
         if (accountSid && authToken) {
             this.client = twilio(accountSid, authToken);
         } else {
-            console.warn('TWILIO credentials missing. SMS service will be disabled.');
+            logger.warn('TWILIO credentials missing. SMS service will be disabled.');
         }
     }
 
@@ -29,7 +30,7 @@ export class SmsService {
         const from = channel === 'whatsapp' ? `whatsapp:${this.fromNumber}` : this.fromNumber;
 
         if (!this.client) {
-            console.log(`[DEV MODE ${channel.toUpperCase()}] To: ${to}, Message: ${content}`);
+            logger.info(`[DEV MODE ${channel.toUpperCase()}] To: ${to}, Message: ${content}`);
             return true;
         }
 
@@ -41,9 +42,9 @@ export class SmsService {
             });
             return true;
         } catch (error: any) {
-            console.error(`Twilio ${channel.toUpperCase()} Error:`, error.message);
+            logger.error(`Twilio ${channel.toUpperCase()} Error:`, error.message);
             // Fallback for dev/staging
-            console.log(`[FALLBACK ${channel.toUpperCase()}] To: ${to}, Message: ${content}`);
+            logger.info(`[FALLBACK ${channel.toUpperCase()}] To: ${to}, Message: ${content}`);
             return true;
         }
     }

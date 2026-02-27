@@ -5,6 +5,48 @@ import { requireAuth } from '../../core/middleware/auth.middleware';
 
 export const customerRouter = Router();
 
+/**
+ * GET /api/v1/customer/check-serviceability
+ * Checks if a given coordinate falls within any active service zone
+ * Public route: must be before requireAuth
+ */
+customerRouter.get('/check-serviceability', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { lat, lng } = req.query;
+
+        if (!lat || !lng) {
+            throw new AppError('Latitude and longitude are required', 400);
+        }
+
+        const latitude = parseFloat(lat as string);
+        const longitude = parseFloat(lng as string);
+
+        if (isNaN(latitude) || isNaN(longitude)) {
+            throw new AppError('Invalid coordinates', 400);
+        }
+
+        // MySQL Spatial query using ST_Contains
+        // MySQL ST_GeomFromText format: 'POINT(X Y)' where X is longitude, Y is latitude
+        const query = `
+            SELECT id, name, city_id 
+            FROM service_zones 
+            WHERE is_active = true 
+            AND ST_Contains(service_area, ST_GeomFromText(?))
+        `;
+
+        const pointStr = `POINT(${longitude} ${latitude})`;
+        const [zones] = await db.raw(query, [pointStr]);
+
+        if (Array.isArray(zones) && zones.length > 0) {
+            res.json({ serviceable: true, zone: zones[0] });
+        } else {
+            res.json({ serviceable: false, message: 'We do not currently serve this location.' });
+        }
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Middleware to ensure user is logged in
 customerRouter.use(requireAuth);
 

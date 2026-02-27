@@ -1,4 +1,4 @@
-export interface ReverseGeocodeResult {
+interface ReverseGeocodeResult {
     street?: string;
     area?: string;
     city?: string;

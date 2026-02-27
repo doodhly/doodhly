@@ -27,7 +27,7 @@
     -   **Product & Quantity** (e.g., "Standard Milk - 2 Packets").
     -   *Hidden*: Wallet balance, phone number (unless "Call" feature is triggered, masked via bridge if possible).
 -   **Visual Indicators**:
-    -   Pending (Default).
+    -   Pending (Default visual state for OUT_FOR_DELIVERY deliveries).
     -   Completed (Green tick).
     -   Failed/Missed (Red cross).
     -   Synced/Unsynced icon for offline status.

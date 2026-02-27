@@ -1,8 +1,12 @@
 
-import { Request, Response, Router } from 'express';
+import { Request, Response, NextFunction, Router } from 'express';
 import { PaymentService } from './payment.service';
 import { requireAuth } from '../../core/middleware/auth.middleware';
 import crypto from 'crypto';
+import logger from '../../core/utils/logger';
+
+import { validate } from '../../core/middleware/validate.middleware';
+import { rechargeWalletSchema } from '../../core/validation/wallet.schema';
 
 const router = Router();
 const paymentService = new PaymentService();
@@ -11,18 +15,13 @@ const paymentService = new PaymentService();
  * POST /api/v1/payment/topup/init
  * Initialize a recharge order
  */
-router.post('/topup/init', requireAuth, async (req: Request, res: Response) => {
+router.post('/topup/init', requireAuth, validate(rechargeWalletSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { amount } = req.body;
-        if (!amount || amount < 1) {
-            return res.status(400).json({ error: 'Invalid amount' });
-        }
-
         const order = await paymentService.createOrder(req.user!.id, amount);
         res.status(200).json(order);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create order' });
+        next(error);
     }
 });
 
@@ -51,7 +50,7 @@ router.post('/webhook/razorpay', async (req: Request, res: Response) => {
 
         res.status(200).json({ status: 'ok' });
     } catch (error) {
-        console.error(error);
+        logger.error('Payment webhook error:', error);
         // Return 200 even on error to prevent Razorpay retrying indefinitely if it's a logic error
         res.status(200).json({ status: 'error_handled' });
     }

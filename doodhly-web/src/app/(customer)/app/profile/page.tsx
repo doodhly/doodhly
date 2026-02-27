@@ -11,13 +11,27 @@ import { User, MapPin, Phone, LogOut, Shield, ChevronRight, Edit2, Loader2, Mail
 export default function ProfilePage() {
     const router = useRouter();
     const { logout } = useAuth();
-    const [user, setUser] = useState<{ name: string, phone_hash: string, email: string } | null>(null);
+    const [user, setUser] = useState<{
+        name: string,
+        phone_hash: string,
+        email: string,
+        referral_code: string,
+        current_tier: string,
+        streak_count: number
+    } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const data = await api.get<{ name: string, phone_hash: string, email: string }>('/customer/profile');
+                const data = await api.get<{
+                    name: string,
+                    phone_hash: string,
+                    email: string,
+                    referral_code: string,
+                    current_tier: string,
+                    streak_count: number
+                }>('/customer/profile');
                 setUser(data);
             } catch (e) {
                 console.error(e);
@@ -81,17 +95,63 @@ export default function ProfilePage() {
                 </div>
             </GlassCard>
 
+            {/* Referral Section */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="relative z-10">
+                    <h3 className="text-xl font-bold mb-2">Refer & Earn ₹50</h3>
+                    <p className="text-blue-100 mb-4 text-sm">Share your code. When a friend places their first order, you both get ₹50!</p>
+                    <div className="bg-white/20 backdrop-blur-md rounded-lg p-3 flex items-center justify-between border border-white/30">
+                        <code className="font-mono text-xl font-bold tracking-wider">{user?.referral_code || '------'}</code>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-white hover:bg-white/20"
+                            onClick={() => {
+                                navigator.clipboard.writeText(user?.referral_code || '');
+                                alert('Code copied!');
+                            }}
+                        >
+                            Copy
+                        </Button>
+                    </div>
+                </div>
+                {/* Decorative circles */}
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-purple-500/20 rounded-full blur-xl"></div>
+            </div>
+
+            {/* Loyalty Stats */}
+            <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider ml-2">Loyalty & Rewards</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-2">
+                            <span className="font-bold text-lg">👑</span>
+                        </div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Current Tier</p>
+                        <p className="font-bold text-gray-900">{user?.current_tier || 'SILVER'}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-2">
+                            <span className="font-bold text-lg">🔥</span>
+                        </div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Streak</p>
+                        <p className="font-bold text-gray-900">{user?.streak_count || 0} Days</p>
+                    </div>
+                </div>
+            </div>
+
             {/* Menu Sections */}
             <div className="space-y-6">
-                {sections.map((section, idx) => (
-                    <div key={idx} className="space-y-3">
+                {sections.map((section) => (
+                    <div key={section.title} className="space-y-3">
                         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider ml-2">{section.title}</h3>
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            {section.items.map((item, i) => {
+                            {section.items.map((item) => {
                                 const Icon = item.icon;
                                 return (
                                     <button
-                                        key={i}
+                                        key={item.label}
                                         className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 text-left"
                                         onClick={item.action}
                                     >

@@ -25,14 +25,14 @@ export class NotificationService {
             const message = this.constructMessage(type, data);
 
             // 3. Dispatch SMS (Always Transactional)
-            await smsService.sendMessage(user.phone, message, 'sms');
+            await smsService.sendMessage(user.phone_hash, message, 'sms');
 
             // 4. Dispatch WhatsApp if Opted-in
             if (user.is_whatsapp_optin) {
-                await smsService.sendMessage(user.phone, message, 'whatsapp');
+                await smsService.sendMessage(user.whatsapp_number || user.phone_hash, message, 'whatsapp');
             }
 
-            console.log(`[NOTIFICATION] Propagated ${type} to ${user.phone}`);
+            console.log(`[NOTIFICATION] Propagated ${type} to ${user.phone_hash}`);
 
         } catch (error) {
             console.error('Notification System Failure:', error);

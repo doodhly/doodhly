@@ -38,7 +38,7 @@ export function CalendarView({ currentDate, deliveries }: CalendarViewProps) {
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 auto-rows-fr bg-gray-50/30">
                 {paddingDays.map((_, i) => (
-                    <div key={`pad-${i}`} className="min-h-[5rem] sm:min-h-[7rem] border-b border-r border-gray-100 bg-gray-50/20" />
+                    <div key={`pad-${month}-${year}-${i}`} className="min-h-[5rem] sm:min-h-[7rem] border-b border-r border-gray-100 bg-gray-50/20" />
                 ))}
 
                 {days.map((day) => {

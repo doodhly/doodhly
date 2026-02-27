@@ -24,7 +24,3 @@ export const removeFromQueue = (id: string) => {
     const queue = getQueue().filter(a => a.id !== id);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 };
-
-export const clearQueue = () => {
-    localStorage.removeItem(QUEUE_KEY);
-};

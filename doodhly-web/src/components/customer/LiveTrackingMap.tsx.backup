@@ -1,0 +1,139 @@
+
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { getSocket } from "@/lib/socket"; // Keep this
+// import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"; // Remove react-leaflet components
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix Leaflet Icon issue in Next.js
+const icon = L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3721/3721619.png", // Milk Truck Icon
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+});
+
+interface Location {
+    lat: number;
+    lng: number;
+    speed?: number;
+    timestamp: number;
+}
+
+// Helper component removed in favor of direct map ref control
+
+export default function LiveTrackingMap({ deliveryId }: { deliveryId: number }) {
+    const [partnerLocation, setPartnerLocation] = useState<Location | null>(null);
+    const [eta, setEta] = useState<string>("Calculating...");
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<L.Map | null>(null);
+
+    useEffect(() => {
+        const socket = getSocket();
+        socket.connect();
+
+        // Join the specific delivery room
+        socket.emit("join_room", `delivery_${deliveryId}`);
+
+        socket.on("location_update", (data: any) => {
+            console.log("Received location update:", data);
+            setPartnerLocation({
+                lat: data.lat,
+                lng: data.lng,
+                speed: data.speed,
+                timestamp: Date.now()
+            });
+
+            // Simple Mock ETA Calculation logic
+            if (data.speed && data.speed > 0) {
+                // assume 500m distance for demo
+                setEta("~5 mins away");
+            } else {
+                setEta("Partner stationary");
+            }
+        });
+
+        // Cleanup socket on unmount
+        return () => {
+            socket.emit("leave_room", `delivery_${deliveryId}`);
+            socket.off("location_update");
+            socket.disconnect();
+        };
+    }, [deliveryId]);
+
+    // Initialize Map
+    useEffect(() => {
+        if (!partnerLocation || !mapContainerRef.current) return;
+        if (mapRef.current) return;
+
+        // CRITICAL: Check if Leaflet already initialized on this element
+        if ((mapContainerRef.current as any)._leaflet_id) {
+            return;
+        }
+
+        try {
+            const mapInstance = L.map(mapContainerRef.current, {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([partnerLocation.lat, partnerLocation.lng], 15);
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            }).addTo(mapInstance);
+
+            const marker = L.marker([partnerLocation.lat, partnerLocation.lng], { icon }).addTo(mapInstance);
+
+            // Save instance and marker for updates
+            mapRef.current = mapInstance;
+            (mapInstance as any)._partnerMarker = marker;
+
+        } catch (error) {
+            console.error("Map init failed:", error);
+        }
+
+        // Cleanup map on unmount
+        return () => {
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
+            }
+        };
+    }, [!!partnerLocation]); // Only run when partnerLocation becomes available (or false->true)
+
+    // Update Map & Marker Position
+    useEffect(() => {
+        if (!partnerLocation || !mapRef.current) return;
+
+        const map = mapRef.current;
+        const marker = (map as any)._partnerMarker as L.Marker;
+
+        if (marker) {
+            marker.setLatLng([partnerLocation.lat, partnerLocation.lng]);
+            const speedKmh = partnerLocation.speed ? (partnerLocation.speed * 3.6).toFixed(1) : '0';
+            marker.bindPopup(`Your milk is here! <br /> Speed: ${speedKmh} km/h`).openPopup();
+        }
+
+        map.setView([partnerLocation.lat, partnerLocation.lng], 15);
+    }, [partnerLocation]);
+
+    if (!partnerLocation) {
+        return (
+            <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 text-sm">
+                Waiting for partner location...
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+                <span className="text-xs font-bold text-green-600 uppercase tracking-wider animate-pulse">● Live Delivery</span>
+                <span className="text-xs font-bold text-gray-700">{eta}</span>
+            </div>
+            <div className="h-64 rounded-xl overflow-hidden shadow-lg border border-gray-200 relative z-0">
+                <div ref={mapContainerRef} style={{ height: "100%", width: "100%", zIndex: 0 }} />
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,55 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'doodhly-web/**'
+
+jobs:
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: doodhly-web/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: doodhly-web
+        run: npm ci
+      
+      - name: Build application
+        working-directory: doodhly-web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000
+        run: npm run build
+      
+      - name: Start server
+        working-directory: doodhly-web
+        run: |
+          npm run start &
+          sleep 10
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:3000
+            http://localhost:3000/auth/login
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          budgetPath: doodhly-web/lighthouse-budget.json
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: '.lighthouseci'

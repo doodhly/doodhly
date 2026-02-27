@@ -16,8 +16,10 @@ interface Product {
 }
 
 export default function AdminProductsPage() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [fetchState, setFetchState] = useState<{ products: Product[]; loading: boolean }>({
+        products: [],
+        loading: true,
+    });
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
@@ -31,11 +33,10 @@ export default function AdminProductsPage() {
     const fetchProducts = async () => {
         try {
             const data = await api.get<Product[]>("/admin/products");
-            setProducts(data);
+            setFetchState({ products: data, loading: false });
         } catch (err) {
             console.error("Failed to fetch products", err);
-        } finally {
-            setLoading(false);
+            setFetchState(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -61,13 +62,13 @@ export default function AdminProductsPage() {
     const toggleProductStatus = async (id: number, current: boolean) => {
         try {
             await api.patch(`/admin/products/${id}/toggle`, { is_active: !current });
-            setProducts(products.map(p => p.id === id ? { ...p, is_active: !current } : p));
+            setFetchState(prev => ({ ...prev, products: prev.products.map(p => p.id === id ? { ...p, is_active: !current } : p) }));
         } catch (err) {
             alert("Failed to update status");
         }
     };
 
-    if (loading) return <div className="p-8 text-slate-500">Loading Product Catalog...</div>;
+    if (fetchState.loading) return <div className="p-8 text-slate-500">Loading Product Catalog...</div>;
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -82,9 +83,8 @@ export default function AdminProductsPage() {
                 </Button>
             </header>
 
-            {/* Catalog Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
+                {fetchState.products.map((product) => (
                     <div key={product.id} className={cn(
                         "bg-white rounded-[2rem] border p-6 transition-all group relative overflow-hidden",
                         !product.is_active && "bg-slate-50 opacity-75"
@@ -130,7 +130,6 @@ export default function AdminProductsPage() {
                 ))}
             </div>
 
-            {/* Add Product Modal (Simple Mock) */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl space-y-6">
@@ -141,8 +140,9 @@ export default function AdminProductsPage() {
 
                         <form onSubmit={handleCreateProduct} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Product Name</label>
+                                <label htmlFor="product-name" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Product Name</label>
                                 <input
+                                    id="product-name"
                                     required
                                     className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm focus:ring-2 focus:ring-brand-blue transition-all"
                                     placeholder="e.g. A2 Desi Cow Milk"
@@ -152,8 +152,9 @@ export default function AdminProductsPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Price (Rupees)</label>
+                                    <label htmlFor="product-price" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Price (Rupees)</label>
                                     <input
+                                        id="product-price"
                                         type="number"
                                         required
                                         className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm focus:ring-2 focus:ring-brand-blue"
@@ -162,8 +163,9 @@ export default function AdminProductsPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Unit</label>
+                                    <label htmlFor="product-unit" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Unit</label>
                                     <select
+                                        id="product-unit"
                                         className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm focus:ring-2 focus:ring-brand-blue h-[54px]"
                                         value={formData.unit}
                                         onChange={e => setFormData({ ...formData, unit: e.target.value })}
@@ -175,8 +177,9 @@ export default function AdminProductsPage() {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Description</label>
+                                <label htmlFor="product-description" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Description</label>
                                 <textarea
+                                    id="product-description"
                                     className="w-full bg-slate-50 border-transparent rounded-2xl p-4 text-sm focus:ring-2 focus:ring-brand-blue min-h-[100px]"
                                     placeholder="Milk properties and benefits..."
                                     value={formData.description}

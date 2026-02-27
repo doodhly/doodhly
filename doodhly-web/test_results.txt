@@ -1,0 +1,134 @@
+
+Running 4 tests using 2 workers
+
+[1A[2K[1/4] [chromium] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget
+[1A[2K[2/4] [chromium] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP
+[1A[2K  1) [chromium] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/\/login|\/start/[39m
+    Received string:  [31m"http://localhost:3000/app/dashboard"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 5000ms[22m
+    [2m    9 × unexpected value "http://localhost:3000/app/dashboard"[22m
+
+
+       9 |         // Expect redirection to login or start page
+      10 |         // Wait for URL to contain /login or /start or verify a login button exists
+    > 11 |         await expect(page).toHaveURL(/\/login|\/start/);
+         |                            ^
+      12 |
+      13 |         // 2. Enter Phone Number
+      14 |         // Target by type="tel" which is specific in the form
+        at C:\Users\ACT\.gemini\antigravity\scratch\anti gravity project\doodhly-web\tests\auth.spec.ts:11:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-should-login-successfully-with-OTP-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\auth-Authentication-Flow-should-login-successfully-with-OTP-chromium\error-context.md
+
+
+[1A[2K[3/4] [Mobile Chrome] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget
+[1A[2K  2) [chromium] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('input[placeholder="• • • • • •"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('input[placeholder="• • • • • •"]')[22m
+
+
+       9 |         await page.getByRole('button', { name: "Get OTP" }).click();
+      10 |         const otpInput = page.locator('input[placeholder="• • • • • •"]');
+    > 11 |         await expect(otpInput).toBeVisible({ timeout: 10000 });
+         |                                ^
+      12 |         await otpInput.fill('1234');
+      13 |         await page.getByRole('button', { name: "Verify & Login" }).click();
+      14 |         await expect(page).toHaveURL(/.*\/app\/dashboard/, { timeout: 10000 });
+        at C:\Users\ACT\.gemini\antigravity\scratch\anti gravity project\doodhly-web\tests\analytics.spec.ts:11:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\analytics-Analytics-Dashbo-bc716-isplay-Smart-Savings-Widget-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\analytics-Analytics-Dashbo-bc716-isplay-Smart-Savings-Widget-chromium\error-context.md
+
+
+[1A[2K[4/4] [Mobile Chrome] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP
+[1A[2K  3) [Mobile Chrome] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/\/login|\/start/[39m
+    Received string:  [31m"http://localhost:3000/app/dashboard"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 5000ms[22m
+    [2m    9 × unexpected value "http://localhost:3000/app/dashboard"[22m
+
+
+       9 |         // Expect redirection to login or start page
+      10 |         // Wait for URL to contain /login or /start or verify a login button exists
+    > 11 |         await expect(page).toHaveURL(/\/login|\/start/);
+         |                            ^
+      12 |
+      13 |         // 2. Enter Phone Number
+      14 |         // Target by type="tel" which is specific in the form
+        at C:\Users\ACT\.gemini\antigravity\scratch\anti gravity project\doodhly-web\tests\auth.spec.ts:11:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-should-login-successfully-with-OTP-Mobile-Chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\auth-Authentication-Flow-should-login-successfully-with-OTP-Mobile-Chrome\error-context.md
+
+
+[1A[2K  4) [Mobile Chrome] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('input[placeholder="• • • • • •"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('input[placeholder="• • • • • •"]')[22m
+
+
+       9 |         await page.getByRole('button', { name: "Get OTP" }).click();
+      10 |         const otpInput = page.locator('input[placeholder="• • • • • •"]');
+    > 11 |         await expect(otpInput).toBeVisible({ timeout: 10000 });
+         |                                ^
+      12 |         await otpInput.fill('1234');
+      13 |         await page.getByRole('button', { name: "Verify & Login" }).click();
+      14 |         await expect(page).toHaveURL(/.*\/app\/dashboard/, { timeout: 10000 });
+        at C:\Users\ACT\.gemini\antigravity\scratch\anti gravity project\doodhly-web\tests\analytics.spec.ts:11:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\analytics-Analytics-Dashbo-bc716-isplay-Smart-Savings-Widget-Mobile-Chrome\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\analytics-Analytics-Dashbo-bc716-isplay-Smart-Savings-Widget-Mobile-Chrome\error-context.md
+
+
+[1A[2K  4 failed
+    [chromium] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget 
+    [chromium] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP ─
+    [Mobile Chrome] › tests\analytics.spec.ts:17:9 › Analytics Dashboard › should display Smart Savings Widget 
+    [Mobile Chrome] › tests\auth.spec.ts:5:9 › Authentication Flow › should login successfully with OTP 
+
+[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m
+^C^CTerminate batch job (Y/N)? 
+^C
